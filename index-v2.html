@@ -932,6 +932,9 @@
         // API Functions - GitHub
         async function fetchGitHubRepos() {
             try {
+                const dateFrom = document.getElementById('dateFrom').value || getDefaultDateFrom();
+                const dateTo = document.getElementById('dateTo').value || getDefaultDateTo();
+
                 const cacheKey = getCacheKey('github', { dateFrom: dateFrom, dateTo: dateTo });
                 const cached = localStorage.getItem(cacheKey);
 
@@ -942,9 +945,6 @@
                         return cachedData.items;
                     }
                 }
-
-                const dateFrom = document.getElementById('dateFrom').value || getDefaultDateFrom();
-                const dateTo = document.getElementById('dateTo').value || getDefaultDateTo();
 
                 const query = `created:${dateFrom}..${dateTo}`;
                 const url = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=30`;
