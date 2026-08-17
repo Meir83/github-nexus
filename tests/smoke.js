@@ -10,6 +10,7 @@
 //
 const { chromium } = require('playwright');
 const path = require('path');
+const fs = require('fs');
 
 const FILE = 'file://' + path.resolve(__dirname, '..', 'index.html');
 
@@ -55,7 +56,7 @@ function check(name, cond, extra = '') {
 
   // ---- Scenario 1: normal load + XSS payloads ----
   {
-    const ctx = await browser.newContext();
+    const ctx = await browser.newContext({ acceptDownloads: true });
     const page = await ctx.newPage();
     let rateLimitMode = false;
 
@@ -168,6 +169,39 @@ function check(name, cond, extra = '') {
     await page.click('#browseBtn');
     await page.waitForTimeout(500);
     check('browse restores full list', await page.locator('.repo-card').count() === 2);
+
+    console.log('\n[10] Bookmark export / import round-trip');
+    // One bookmark is already saved from [9].
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#exportBtn')
+    ]);
+    const exportPath = await download.path();
+    const exported = JSON.parse(fs.readFileSync(exportPath, 'utf8'));
+    check('export names the app', exported.app === 'ai-discovery-hub');
+    check('export contains the bookmark', Object.keys(exported.bookmarks).length === 1);
+    check('export filename is dated', /ai-discovery-hub-bookmarks-\d{4}-\d{2}-\d{2}\.json/.test(download.suggestedFilename()), download.suggestedFilename());
+
+    // Wipe bookmarks, then restore from the exported file.
+    await page.evaluate(() => { localStorage.removeItem('bookmarks'); });
+    await page.reload();
+    await page.waitForSelector('.repo-card', { timeout: 10000 });
+    check('bookmarks cleared', (await page.locator('#bookmarkCount').textContent()) === '0');
+
+    page.once('dialog', d => d.accept());
+    await page.setInputFiles('#importInput', exportPath);
+    await page.waitForTimeout(500);
+    check('bookmark restored from file', (await page.locator('#bookmarkCount').textContent()) === '1');
+
+    // A junk file must be rejected without destroying existing bookmarks.
+    const junk = path.join(require('os').tmpdir(), 'junk-bookmarks.json');
+    fs.writeFileSync(junk, JSON.stringify({ nonsense: true }));
+    let dialogText = '';
+    page.once('dialog', d => { dialogText = d.message(); d.accept(); });
+    await page.setInputFiles('#importInput', junk);
+    await page.waitForTimeout(500);
+    check('malformed import rejected', /Import failed/.test(dialogText), dialogText);
+    check('existing bookmarks survived bad import', (await page.locator('#bookmarkCount').textContent()) === '1');
 
     check('still no page errors at end', errors.length === 0, errors.join('; '));
     await ctx.close();

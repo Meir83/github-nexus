@@ -30,7 +30,10 @@ AI Discovery Hub V2 expands beyond GitHub to become a comprehensive discovery pl
 - **One-Click Bookmarking** - Save items across all platforms
 - **Persistent Storage** - Bookmarks saved in localStorage
 - **Quick Access** - View all bookmarks with one click
-- **Cross-Platform** - Bookmark GitHub repos, HF models, and LLM entries
+- **Cross-Platform** - Bookmark GitHub repos and HuggingFace models
+- **Export / Import** - Download your bookmarks as JSON and restore them on
+  another browser or after clearing your cache. Importing merges rather than
+  replaces, so restoring never deletes bookmarks you already have.
 
 ### 👁️ Multiple View Modes (V2)
 - **Grid View** - Classic card layout with full details
@@ -196,6 +199,18 @@ Raising the limit means holding a token, which a purely client-side app cannot d
 safely - a token shipped in the page is a public token. The supported route is a small
 server-side proxy that holds the credential; see `ADVISORY.md`.
 
+## Project Structure
+
+```
+index.html        Markup only
+css/styles.css    All styling
+js/app.js         All behaviour
+tests/smoke.js    Browser smoke tests
+```
+
+No build step and no runtime dependencies - GitHub Pages serves these files as-is,
+and opening `index.html` from disk works identically.
+
 ## Testing
 
 Browser smoke tests live in `tests/smoke.js`. All third-party APIs are mocked, so the
@@ -207,7 +222,10 @@ node tests/smoke.js
 ```
 
 They cover HTML escaping of API-supplied text, platform-wide search, rate-limit
-messaging, tab navigation, and the bookmark round-trip.
+messaging, tab navigation, and the bookmark export/import round-trip.
+
+CI runs the same suite on every push and pull request, and the GitHub Pages deploy
+job will not run unless the tests pass.
 
 ## Future Enhancements
 
@@ -216,11 +234,11 @@ Potential features for future versions:
 - ✅ ~~Trending time ranges~~ (Implemented in V2 with date picker)
 - ✅ ~~Multi-platform support~~ (Implemented in V2)
 - ✅ ~~Search across the whole platform, not just loaded results~~ (Implemented)
+- ✅ ~~Export bookmarks to JSON~~ (Implemented, with import)
 - Side-by-side comparison view
 - User authentication with GitHub/HuggingFace OAuth
 - Dark/light theme toggle
 - Share specific searches via URL
-- Export bookmarks/data to CSV/JSON
 - GitHub star/unstar from the app
 - More platforms (NPM, PyPI, Docker Hub)
 - Actual LLM Arena data (needs a server-side proxy; the tab currently links out)

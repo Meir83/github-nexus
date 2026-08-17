@@ -5,6 +5,32 @@ All notable changes to AI Discovery Hub (formerly GitHub Nexus) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-08-17
+
+Closes the remaining items from `ADVISORY.md`.
+
+### Added
+
+- **Bookmark export and import.** Bookmarks live in `localStorage`, which a
+  cleared cache wipes without warning - export is this app's whole backup story,
+  so import ships with it. Export downloads a dated JSON file; import merges into
+  the existing set rather than replacing it, so restoring on a device that already
+  has bookmarks never deletes them. Malformed files are rejected with a message
+  and leave existing bookmarks untouched.
+- **Tests run in CI.** The Actions workflow now runs `tests/smoke.js` on every
+  push and pull request, and the Pages deploy job depends on it - a failing test
+  can no longer reach production. Playwright is installed with `--no-save`, so the
+  repository still carries no `package.json` or lockfile.
+- Smoke coverage for the export/import round-trip, including the malformed-file
+  path (36 checks total).
+
+### Changed
+
+- **Split the single file into `index.html` + `css/styles.css` + `js/app.js`.**
+  The 1,776-line monolith is now 150 lines of markup, 837 of CSS and 888 of JS.
+  There is still no build step and no dependencies: Pages serves the files as-is
+  and opening `index.html` from disk behaves identically.
+
 ## [2.1.0] - 2026-08-17
 
 ### Fixed

@@ -112,17 +112,22 @@ foundation that can take it.
 **Nice-to-have**
 
 - [x] Rename the GitHub view to reflect what it queries (created-in-window, not trending)
-- [x] Playwright smoke test — added as `tests/smoke.js`; not yet wired into Actions
-- [ ] Run `tests/smoke.js` in the existing Actions workflow
-- [ ] "Export bookmarks to JSON" — `localStorage` is the only user data here, and it dies
-      with a cleared browser cache; a one-click export *is* the backup story for this app
-- [ ] Custom domain (~$10–12/yr) — HTTPS is already free and automatic on Pages
-- [ ] Split CSS/JS out of the HTML file, incrementally
+- [x] Playwright smoke test — `tests/smoke.js`, 36 checks
+- [x] Run `tests/smoke.js` in the existing Actions workflow — done in v2.2.0; the Pages
+      deploy job now depends on the tests passing
+- [x] "Export bookmarks to JSON" — done in v2.2.0, with import as well, since a backup
+      you cannot restore from is not a backup
+- [x] Split CSS/JS out of the HTML file — done in v2.2.0 (`index.html` + `css/styles.css`
+      + `js/app.js`, still no build step and no dependencies)
+- [ ] **Custom domain (~$10–12/yr)** — needs you: buying a domain requires your payment
+      details and your DNS. HTTPS is already free and automatic on Pages, so this is
+      cosmetic, not blocking.
 
-**Also shipped in v2.1.0 (not on the original list)**
+**Also shipped beyond the original list**
 
 - [x] Platform-wide search — the search box now queries GitHub/HuggingFace directly
-      instead of only filtering already-loaded results
+      instead of only filtering already-loaded results (v2.1.0)
+- [x] Bookmark import to pair with export (v2.2.0)
 
 Not needed: server backups (no server-side data), auth (nothing to protect), staging
 environment (solo project), error monitoring at this stage (a static page with no backend —
@@ -132,8 +137,14 @@ revisit if you do Option B).
 
 ## 4. Recommendation
 
-> **Status update (2026-08-17):** Option A is done and shipped as v2.1.0, along with
-> platform-wide search. The recommendation below stands for what comes next.
+> **Status update (2026-08-17):** Option A shipped as v2.1.0 (with platform-wide search),
+> and every remaining engineering item on the checklist above shipped as v2.2.0 — CI
+> gating, bookmark backup, and the file split. The only open checklist item is the custom
+> domain, which needs your payment details and DNS.
+>
+> **What that leaves:** merging to `master` so V2 actually goes live, and then the
+> Option B decision below. Option B needs a Cloudflare account and a GitHub token that
+> only you can create, so it is a decision for you rather than something I can ship.
 
 **Do Option A this week. Then decide on B with a live V2 in front of you.**
 

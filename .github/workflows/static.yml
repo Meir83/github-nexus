@@ -1,9 +1,13 @@
-# Simple workflow for deploying static content to GitHub Pages
+# Test and deploy the static site to GitHub Pages
 name: Deploy static content to Pages
 
 on:
   # Runs on pushes targeting the default branch
   push:
+    branches: ["master"]
+
+  # Also run the tests on pull requests, so problems surface before merge
+  pull_request:
     branches: ["master"]
 
   # Allows you to run this workflow manually from the Actions tab
@@ -22,8 +26,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
+  # Browser smoke tests. All third-party APIs are mocked inside the test, so
+  # this job never touches the network beyond installing its own tooling.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # --no-save keeps the repository dependency-free: there is no
+      # package.json to drift and no lockfile to maintain.
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        run: node tests/smoke.js
+
   deploy:
+    # A failing test must never reach production.
+    needs: test
+    # Pull requests are tested but not deployed.
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
