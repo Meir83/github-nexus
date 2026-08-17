@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Nexus · Weekly Trending</title>
+    <title>AI Discovery Hub · Multi-Platform Discovery</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Sora:wght@300;400;600;700&family=Oxanium:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -14,12 +14,16 @@
             --space-light: #2a2f3e;
             --electric-cyan: #00d4ff;
             --neon-blue: #0066ff;
+            --neon-purple: #9d4edd;
+            --neon-pink: #ff006e;
+            --neon-green: #00ff88;
             --pure-white: #ffffff;
             --off-white: #f0f4f8;
             --text-gray: #a0aec0;
             --border-gray: rgba(255, 255, 255, 0.1);
             --glow-cyan: rgba(0, 212, 255, 0.3);
             --glow-blue: rgba(0, 102, 255, 0.2);
+            --glow-purple: rgba(157, 78, 221, 0.3);
         }
 
         * {
@@ -36,7 +40,7 @@
             overflow-x: hidden;
         }
 
-        /* Subtle grid background pattern */
+        /* Background effects */
         body::before {
             content: '';
             position: fixed;
@@ -52,7 +56,6 @@
             pointer-events: none;
         }
 
-        /* Animated gradient orb */
         body::after {
             content: '';
             position: fixed;
@@ -66,59 +69,14 @@
             pointer-events: none;
         }
 
-        /* Header with futuristic styling */
-        header {
-            background: linear-gradient(135deg, var(--space-medium) 0%, var(--space-dark) 100%);
-            padding: 4rem 2rem 3rem;
-            position: relative;
-            overflow: hidden;
-            border-bottom: 2px solid var(--electric-cyan);
-            box-shadow: 0 0 40px var(--glow-cyan);
-        }
-
-        header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg,
-                transparent 0%,
-                var(--electric-cyan) 50%,
-                transparent 100%);
-            animation: scanline 3s linear infinite;
-        }
-
-        @keyframes scanline {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
         @keyframes float {
             0%, 100% { transform: translate(0, 0) rotate(0deg); }
             50% { transform: translate(-30px, -30px) rotate(10deg); }
         }
 
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 1;
-        }
-
-        h1 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: clamp(3rem, 8vw, 6rem);
-            font-weight: 900;
-            color: var(--pure-white);
-            margin-bottom: 0.5rem;
-            letter-spacing: 0.05em;
-            text-shadow:
-                0 0 20px var(--glow-cyan),
-                0 0 40px var(--glow-blue),
-                0 4px 8px rgba(0, 0, 0, 0.5);
-            animation: slideDown 1s ease-out, glow 3s ease-in-out infinite alternate;
+        @keyframes scanline {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         @keyframes glow {
@@ -147,6 +105,67 @@
             }
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes cardSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--space-medium) 0%, var(--space-dark) 100%);
+            padding: 3rem 2rem 2rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 2px solid var(--electric-cyan);
+            box-shadow: 0 0 40px var(--glow-cyan);
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                var(--electric-cyan) 50%,
+                transparent 100%);
+            animation: scanline 3s linear infinite;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2.5rem, 7vw, 5rem);
+            font-weight: 900;
+            color: var(--pure-white);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.05em;
+            text-shadow:
+                0 0 20px var(--glow-cyan),
+                0 0 40px var(--glow-blue),
+                0 4px 8px rgba(0, 0, 0, 0.5);
+            animation: slideDown 1s ease-out, glow 3s ease-in-out infinite alternate;
+        }
+
         .subtitle {
             font-family: 'Oxanium', sans-serif;
             font-size: clamp(0.9rem, 2vw, 1.1rem);
@@ -157,70 +176,199 @@
             animation: slideDown 1s ease-out 0.2s backwards;
         }
 
-        .week-banner {
-            display: inline-block;
-            margin-top: 1.5rem;
-            padding: 0.75rem 2rem;
-            background: linear-gradient(135deg, var(--neon-blue), var(--electric-cyan));
-            color: var(--pure-white);
-            font-family: 'Oxanium', sans-serif;
-            font-size: 0.9rem;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            border-radius: 4px;
-            box-shadow:
-                0 0 20px var(--glow-blue),
-                inset 0 0 20px rgba(255, 255, 255, 0.1);
-            animation: slideDown 1s ease-out 0.4s backwards;
+        /* Platform Tabs */
+        .platform-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
         }
 
-        /* Main content area */
+        .platform-tab {
+            padding: 0.75rem 2rem;
+            background: rgba(26, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-gray);
+            color: var(--text-gray);
+            font-family: 'Oxanium', sans-serif;
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            position: relative;
+        }
+
+        .platform-tab:hover {
+            border-color: var(--electric-cyan);
+            color: var(--electric-cyan);
+        }
+
+        .platform-tab.active {
+            background: linear-gradient(135deg, var(--neon-blue), var(--electric-cyan));
+            color: var(--pure-white);
+            border-color: var(--electric-cyan);
+            box-shadow: 0 0 20px var(--glow-blue);
+        }
+
+        .platform-tab .badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--neon-pink);
+            color: var(--pure-white);
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        /* Main content */
         main {
             max-width: 1400px;
-            margin: -2rem auto 4rem;
+            margin: -1rem auto 4rem;
             padding: 0 2rem;
             position: relative;
             z-index: 2;
         }
 
-        .collection-intro {
+        /* Toolbar */
+        .toolbar {
             background: rgba(26, 31, 46, 0.6);
             backdrop-filter: blur(10px);
-            padding: 3rem;
-            margin-bottom: 3rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
             border: 1px solid var(--border-gray);
-            border-left: 4px solid var(--electric-cyan);
-            box-shadow:
-                0 0 40px var(--glow-blue),
-                inset 0 0 60px rgba(0, 212, 255, 0.05);
-            position: relative;
             border-radius: 8px;
+            box-shadow: 0 0 30px var(--glow-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
-        .collection-intro::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100px;
-            background: radial-gradient(circle at top right, var(--glow-cyan), transparent);
-            opacity: 0.5;
+        .toolbar-left {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
-        .collection-intro h2 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 700;
+        .toolbar-button {
+            padding: 0.6rem 1.2rem;
+            background: rgba(10, 14, 26, 0.8);
+            border: 1px solid var(--border-gray);
+            color: var(--off-white);
+            font-family: 'Oxanium', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toolbar-button:hover {
+            border-color: var(--electric-cyan);
+            box-shadow: 0 0 15px var(--glow-cyan);
+        }
+
+        .toolbar-button.active {
+            background: var(--electric-cyan);
+            color: var(--space-dark);
+            border-color: var(--electric-cyan);
+        }
+
+        .view-mode-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Filter Controls */
+        .filter-controls {
+            background: rgba(26, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            box-shadow: 0 0 30px var(--glow-blue);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-label {
+            font-family: 'Oxanium', sans-serif;
+            font-size: 0.75rem;
             color: var(--electric-cyan);
-            margin-bottom: 1rem;
-            text-shadow: 0 0 20px var(--glow-cyan);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
         }
 
-        .collection-intro p {
-            font-size: 1.2rem;
+        .search-input,
+        .filter-select,
+        .date-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(10, 14, 26, 0.8);
+            border: 1px solid var(--border-gray);
+            border-radius: 6px;
+            color: var(--off-white);
+            font-family: 'Sora', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .search-input:focus,
+        .filter-select:focus,
+        .date-input:focus {
+            border-color: var(--electric-cyan);
+            box-shadow: 0 0 20px var(--glow-cyan);
+        }
+
+        .search-input::placeholder {
             color: var(--text-gray);
-            line-height: 1.8;
+            opacity: 0.6;
+        }
+
+        .filter-select option {
+            background: var(--space-dark);
+            color: var(--off-white);
+        }
+
+        .multi-select {
+            min-height: 100px;
+        }
+
+        .results-count {
+            font-family: 'Oxanium', sans-serif;
+            font-size: 0.9rem;
+            color: var(--text-gray);
+            padding: 0.75rem 1.5rem;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--electric-cyan);
+            border-radius: 6px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .results-count .count {
+            color: var(--electric-cyan);
+            font-weight: 700;
+            font-size: 1.1rem;
         }
 
         /* Loading state */
@@ -245,20 +393,36 @@
             60%, 100% { content: '...'; }
         }
 
-        /* Repository grid */
+        /* Content Container */
+        #contentContainer {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Grid View */
         .repo-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-            gap: 3rem 2.5rem;
+            gap: 2.5rem 2rem;
             animation: fadeIn 1s ease-out;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        /* List View */
+        .repo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            animation: fadeIn 1s ease-out;
         }
 
-        /* Repository cards with staggered animation */
+        /* Compact View */
+        .repo-compact {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            animation: fadeIn 1s ease-out;
+        }
+
+        /* Repository cards */
         .repo-card {
             background: rgba(26, 31, 46, 0.5);
             backdrop-filter: blur(10px);
@@ -273,22 +437,11 @@
         }
 
         .repo-card:nth-child(1) { animation-delay: 0.1s; }
-        .repo-card:nth-child(2) { animation-delay: 0.2s; }
-        .repo-card:nth-child(3) { animation-delay: 0.3s; }
-        .repo-card:nth-child(4) { animation-delay: 0.4s; }
-        .repo-card:nth-child(5) { animation-delay: 0.5s; }
-        .repo-card:nth-child(6) { animation-delay: 0.6s; }
-
-        @keyframes cardSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+        .repo-card:nth-child(2) { animation-delay: 0.15s; }
+        .repo-card:nth-child(3) { animation-delay: 0.2s; }
+        .repo-card:nth-child(4) { animation-delay: 0.25s; }
+        .repo-card:nth-child(5) { animation-delay: 0.3s; }
+        .repo-card:nth-child(6) { animation-delay: 0.35s; }
 
         .repo-card::before {
             content: '';
@@ -318,6 +471,19 @@
             opacity: 1;
         }
 
+        /* List view specific styles */
+        .repo-list .repo-card {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        /* Compact view specific styles */
+        .repo-compact .repo-card {
+            padding: 1.5rem;
+        }
+
         .repo-rank {
             position: absolute;
             top: 20px;
@@ -337,6 +503,36 @@
                 0 0 20px var(--glow-cyan),
                 0 4px 12px rgba(0, 0, 0, 0.3);
             border: 2px solid var(--pure-white);
+            z-index: 10;
+        }
+
+        .bookmark-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(26, 31, 46, 0.8);
+            border: 1px solid var(--border-gray);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+            font-size: 1.2rem;
+        }
+
+        .bookmark-btn:hover {
+            background: var(--electric-cyan);
+            border-color: var(--electric-cyan);
+            transform: scale(1.1);
+        }
+
+        .bookmark-btn.bookmarked {
+            background: var(--neon-pink);
+            border-color: var(--neon-pink);
         }
 
         .repo-name {
@@ -372,12 +568,28 @@
             min-height: 3.4rem;
         }
 
+        .repo-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-gray);
+        }
+
+        .repo-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
         .repo-stats {
             display: flex;
             gap: 2rem;
             margin-bottom: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid var(--border-gray);
+            flex-wrap: wrap;
         }
 
         .stat {
@@ -406,153 +618,7 @@
             text-transform: uppercase;
             border-radius: 4px;
             box-shadow: 0 0 10px var(--glow-cyan);
-        }
-
-        /* Footer */
-        footer {
-            background: var(--space-medium);
-            color: var(--text-gray);
-            padding: 3rem 2rem;
-            text-align: center;
-            margin-top: 6rem;
-            border-top: 1px solid var(--border-gray);
-            box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        footer p {
-            font-family: 'Sora', sans-serif;
-            font-size: 1rem;
-            letter-spacing: 0.05em;
-        }
-
-        .footer-accent {
-            color: var(--electric-cyan);
-            font-weight: 600;
-            text-shadow: 0 0 10px var(--glow-cyan);
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            header {
-                padding: 3rem 1.5rem 2rem;
-            }
-
-            .repo-grid {
-                grid-template-columns: 1fr;
-                gap: 2rem;
-            }
-
-            .collection-intro {
-                padding: 2rem;
-            }
-
-            .repo-card {
-                padding: 2rem;
-            }
-        }
-
-        /* Error state */
-        .error-message {
-            background: rgba(220, 38, 38, 0.1);
-            border: 1px solid rgba(220, 38, 38, 0.5);
-            border-left: 4px solid #dc2626;
-            padding: 2rem;
-            margin: 2rem 0;
-            font-family: 'Sora', sans-serif;
-            color: #fca5a5;
-            border-radius: 8px;
-        }
-
-        /* Filter Controls */
-        .filter-controls {
-            background: rgba(26, 31, 46, 0.6);
-            backdrop-filter: blur(10px);
-            padding: 2rem;
-            margin-bottom: 3rem;
-            border: 1px solid var(--border-gray);
-            border-radius: 8px;
-            box-shadow: 0 0 30px var(--glow-blue);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-            align-items: center;
-        }
-
-        .control-group {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .control-label {
-            font-family: 'Oxanium', sans-serif;
-            font-size: 0.75rem;
-            color: var(--electric-cyan);
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-            display: block;
-        }
-
-        .search-input,
-        .filter-select {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            background: rgba(10, 14, 26, 0.8);
-            border: 1px solid var(--border-gray);
-            border-radius: 6px;
-            color: var(--off-white);
-            font-family: 'Sora', sans-serif;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-            outline: none;
-        }
-
-        .search-input:focus,
-        .filter-select:focus {
-            border-color: var(--electric-cyan);
-            box-shadow: 0 0 20px var(--glow-cyan);
-        }
-
-        .search-input::placeholder {
-            color: var(--text-gray);
-            opacity: 0.6;
-        }
-
-        .filter-select option {
-            background: var(--space-dark);
-            color: var(--off-white);
-        }
-
-        .results-count {
-            font-family: 'Oxanium', sans-serif;
-            font-size: 0.9rem;
-            color: var(--text-gray);
-            padding: 0.75rem 1.5rem;
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid var(--electric-cyan);
-            border-radius: 6px;
-            white-space: nowrap;
-        }
-
-        .results-count .count {
-            color: var(--electric-cyan);
-            font-weight: 700;
-        }
-
-        /* Additional stats */
-        .repo-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            font-size: 0.85rem;
-            color: var(--text-gray);
-        }
-
-        .repo-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
+            margin-right: 0.5rem;
         }
 
         .repo-topics {
@@ -578,19 +644,205 @@
             color: var(--electric-cyan);
         }
 
-        /* Responsive adjustments for controls */
+        .platform-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            background: var(--neon-purple);
+            color: var(--pure-white);
+            font-family: 'Oxanium', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .platform-badge.github { background: var(--neon-blue); }
+        .platform-badge.huggingface { background: #FFD21E; color: #000; }
+        .platform-badge.llmarena { background: var(--neon-purple); }
+
+        /* Error state */
+        .error-message {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.5);
+            border-left: 4px solid #dc2626;
+            padding: 2rem;
+            margin: 2rem 0;
+            font-family: 'Sora', sans-serif;
+            color: #fca5a5;
+            border-radius: 8px;
+        }
+
+        /* Notice panel (used when a platform has no live data source) */
+        .notice-panel {
+            background: rgba(26, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-gray);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .notice-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .notice-panel h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: var(--pure-white);
+            margin-bottom: 1rem;
+            letter-spacing: 0.05em;
+        }
+
+        .notice-panel p {
+            color: var(--text-gray);
+            max-width: 540px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .notice-link {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, var(--neon-blue), var(--electric-cyan));
+            color: var(--pure-white);
+            text-decoration: none;
+            font-family: 'Oxanium', sans-serif;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .notice-link:hover {
+            box-shadow: 0 0 25px var(--glow-cyan);
+            transform: translateY(-2px);
+        }
+
+        .notice-footnote {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-top: 1.5rem !important;
+        }
+
+        /* Global search */
+        /* The search box carries both filtering and platform-wide search, so it
+           needs more room than the other controls. */
+        .control-group.search-group {
+            grid-column: span 2;
+            min-width: 320px;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: stretch;
+        }
+
+        .search-row .search-input {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-scope-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-left: 4px solid var(--electric-cyan);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            font-family: 'Sora', sans-serif;
+        }
+
+        .search-scope-banner .scope-text {
+            color: var(--off-white);
+        }
+
+        .search-scope-banner .scope-query {
+            color: var(--electric-cyan);
+            font-weight: 600;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--space-medium);
+            color: var(--text-gray);
+            padding: 3rem 2rem;
+            text-align: center;
+            margin-top: 6rem;
+            border-top: 1px solid var(--border-gray);
+            box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        footer p {
+            font-family: 'Sora', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+        }
+
+        .footer-accent {
+            color: var(--electric-cyan);
+            font-weight: 600;
+            text-shadow: 0 0 10px var(--glow-cyan);
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
+            header {
+                padding: 2rem 1.5rem 1.5rem;
+            }
+
+            .platform-tabs {
+                gap: 0.5rem;
+            }
+
+            .platform-tab {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.8rem;
+            }
+
+            .repo-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
             .filter-controls {
+                grid-template-columns: 1fr;
+                padding: 1.5rem;
+            }
+
+            .control-group.search-group {
+                grid-column: span 1;
+                min-width: 0;
+            }
+
+            .search-row {
+                flex-wrap: wrap;
+            }
+
+            .search-row .search-input {
+                flex: 1 1 100%;
+            }
+
+            .repo-card {
+                padding: 2rem;
+            }
+
+            .toolbar {
                 flex-direction: column;
+                align-items: stretch;
             }
 
-            .control-group {
-                width: 100%;
-            }
-
-            .results-count {
-                width: 100%;
-                text-align: center;
+            .toolbar-left {
+                flex-direction: column;
             }
         }
     </style>
@@ -598,35 +850,103 @@
 <body>
     <header>
         <div class="header-content">
-            <div class="subtitle">Weekly Trending</div>
-            <h1>GitHub Nexus</h1>
-            <div class="week-banner" id="weekBanner">Loading...</div>
+            <div class="subtitle">Multi-Platform Discovery</div>
+            <h1>AI Discovery Hub</h1>
+
+            <div class="platform-tabs">
+                <div class="platform-tab active" data-platform="github">
+                    🐙 GitHub
+                </div>
+                <div class="platform-tab" data-platform="huggingface">
+                    🤗 HuggingFace
+                    <span class="badge">NEW</span>
+                </div>
+                <div class="platform-tab" data-platform="llmarena">
+                    🏆 LLM Arena
+                </div>
+            </div>
         </div>
     </header>
 
     <main>
-        <div class="collection-intro">
-            <h2>Latest Discoveries</h2>
-            <p>Explore the most innovative repositories emerging this week. Algorithmically curated from GitHub's trending projects, updated weekly with fresh discoveries.</p>
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <button class="toolbar-button" id="bookmarksBtn">
+                    ⭐ Bookmarks (<span id="bookmarkCount">0</span>)
+                </button>
+                <button class="toolbar-button" id="browseBtn">
+                    🔭 Browse
+                </button>
+            </div>
+            <div class="view-mode-buttons">
+                <button class="toolbar-button active" data-view="grid">
+                    ▦ Grid
+                </button>
+                <button class="toolbar-button" data-view="list">
+                    ☰ List
+                </button>
+                <button class="toolbar-button" data-view="compact">
+                    ▤ Compact
+                </button>
+            </div>
         </div>
 
+        <!-- Filter Controls -->
         <div class="filter-controls">
-            <div class="control-group">
+            <div class="control-group search-group">
                 <label class="control-label">Search</label>
+                <div class="search-row">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        class="search-input"
+                        placeholder="Filter results, or press Enter to search everywhere"
+                    />
+                    <button class="toolbar-button" id="globalSearchBtn" title="Search the whole platform, not just the loaded results">
+                        🔍 Search all
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group" id="dateRangeGroup">
+                <label class="control-label">Created After</label>
                 <input
-                    type="text"
-                    id="searchInput"
-                    class="search-input"
-                    placeholder="Search repositories..."
+                    type="date"
+                    id="dateFrom"
+                    class="date-input"
                 />
             </div>
-            <div class="control-group">
-                <label class="control-label">Language</label>
-                <select id="languageFilter" class="filter-select">
-                    <option value="">All Languages</option>
+
+            <div class="control-group" id="dateToGroup">
+                <label class="control-label">Created Before</label>
+                <input
+                    type="date"
+                    id="dateTo"
+                    class="date-input"
+                />
+            </div>
+
+            <div class="control-group" id="languageGroup">
+                <label class="control-label">Languages</label>
+                <select id="languageFilter" class="filter-select multi-select" multiple>
                 </select>
             </div>
-            <div class="control-group">
+
+            <div class="control-group" id="categoryGroup" style="display: none;">
+                <label class="control-label">Category</label>
+                <select id="categoryFilter" class="filter-select">
+                    <option value="">All Categories</option>
+                    <option value="nlp">NLP</option>
+                    <option value="computer-vision">Computer Vision</option>
+                    <option value="audio">Audio</option>
+                    <option value="multimodal">Multimodal</option>
+                    <option value="reinforcement-learning">RL</option>
+                    <option value="tabular">Tabular</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="sortGroup">
                 <label class="control-label">Sort By</label>
                 <select id="sortBy" class="filter-select">
                     <option value="stars">Most Stars</option>
@@ -636,114 +956,83 @@
                     <option value="issues">Most Issues</option>
                 </select>
             </div>
+
             <div class="results-count">
-                <span class="count" id="resultsCount">0</span> repositories
+                <span class="count" id="resultsCount">0</span> results
             </div>
         </div>
 
-        <div id="repoContainer">
-            <div class="loading">Curating this week's collection</div>
+        <!-- Search scope banner (shown when viewing platform-wide search results) -->
+        <div id="searchScopeBanner"></div>
+
+        <!-- Content Container -->
+        <div id="contentContainer">
+            <div class="loading">Loading discoveries</div>
         </div>
     </main>
 
     <footer>
-        <p>Powered by the <span class="footer-accent">GitHub API</span> · Updates Weekly</p>
+        <p>Powered by <span class="footer-accent">GitHub</span> · <span class="footer-accent">HuggingFace</span> · <span class="footer-accent">LLM Arena</span></p>
         <p style="margin-top: 0.5rem; opacity: 0.7; font-size: 0.9rem;">Last Updated: <span id="lastUpdate">...</span></p>
     </footer>
 
     <script>
-        // GitHub API configuration
+        // API Configuration
         const GITHUB_API = 'https://api.github.com';
-        const CACHE_KEY = 'github_shop_trending';
-        const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
+        const HUGGINGFACE_API = 'https://huggingface.co/api';
+        const LLM_ARENA_API = 'https://lmarena.ai/api'; // Note: We'll need to verify the actual endpoint
 
-        // Global state
-        let allRepos = [];
-        let filteredRepos = [];
+        const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 1 week
+        const SEARCH_CACHE_DURATION = 60 * 60 * 1000; // 1 hour - searches should stay fresh
 
-        // Get current week number for cache validation
+        // Global State
+        let currentPlatform = 'github';
+        let currentView = 'grid';
+        let allItems = [];
+        let filteredItems = [];
+        // null while browsing; { platform, query } while showing platform-wide
+        // search results rather than the curated browse list.
+        let searchMode = null;
+        let bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '{}');
+
+        // Utility Functions
+
+        // Escape text coming from external APIs before it reaches innerHTML.
+        // Repo names, descriptions and model IDs are user-supplied upstream.
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Only http(s) links are allowed through to the DOM, so a crafted
+        // javascript: or data: URL from an API response can never be opened.
+        function safeUrl(url) {
+            if (!url) return '';
+            try {
+                const parsed = new URL(url, window.location.href);
+                return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : '';
+            } catch (error) {
+                return '';
+            }
+        }
+
         function getWeekNumber(date = new Date()) {
             const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
             const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
             return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
         }
 
-        // Format week display
-        function formatWeekBanner() {
-            const now = new Date();
-            const weekNum = getWeekNumber(now);
-            const year = now.getFullYear();
-            return `Week ${weekNum}, ${year}`;
-        }
-
-        // Check if cached data is still valid (same week)
-        function isCacheValid(cachedData) {
-            if (!cachedData || !cachedData.week || !cachedData.year) return false;
-
-            const now = new Date();
-            const currentWeek = getWeekNumber(now);
-            const currentYear = now.getFullYear();
-
-            return cachedData.week === currentWeek && cachedData.year === currentYear;
-        }
-
-        // Fetch trending repositories from GitHub
-        async function fetchTrendingRepos() {
-            try {
-                // Check cache first
-                const cached = localStorage.getItem(CACHE_KEY);
-                if (cached) {
-                    const cachedData = JSON.parse(cached);
-                    if (isCacheValid(cachedData)) {
-                        console.log('Using cached data from Week', cachedData.week);
-                        return cachedData.repos;
-                    }
-                }
-
-                // Calculate date one week ago
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-                const dateString = oneWeekAgo.toISOString().split('T')[0];
-
-                // Fetch trending repos (created in the last week, sorted by stars)
-                const query = `created:>${dateString}`;
-                const url = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=12`;
-
-                const response = await fetch(url);
-
-                if (!response.ok) {
-                    throw new Error(`GitHub API error: ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                // Cache the results with week number
-                const now = new Date();
-                const cacheData = {
-                    week: getWeekNumber(now),
-                    year: now.getFullYear(),
-                    timestamp: now.toISOString(),
-                    repos: data.items
-                };
-
-                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-
-                return data.items;
-            } catch (error) {
-                console.error('Error fetching trending repos:', error);
-                throw error;
-            }
-        }
-
-        // Format numbers with K suffix
         function formatNumber(num) {
-            if (num >= 1000) {
-                return (num / 1000).toFixed(1) + 'k';
-            }
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
             return num.toString();
         }
 
-        // Format date to relative time
         function formatRelativeTime(dateString) {
             const date = new Date(dateString);
             const now = new Date();
@@ -753,110 +1042,513 @@
             if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
             if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
             if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
-        // Render repository cards
-        function renderRepos(repos) {
-            const container = document.getElementById('repoContainer');
+        function getCacheKey(platform, params = {}) {
+            return `${platform}_${JSON.stringify(params)}`;
+        }
 
-            if (!repos || repos.length === 0) {
-                container.innerHTML = '<div class="error-message">No repositories match your filters.</div>';
+        function isCacheValid(cachedData, duration = CACHE_DURATION) {
+            if (!cachedData || !cachedData.timestamp) return false;
+            return (Date.now() - cachedData.timestamp) < duration;
+        }
+
+        // Bookmark Functions
+        function isBookmarked(id, platform) {
+            const key = `${platform}_${id}`;
+            return bookmarks[key] !== undefined;
+        }
+
+        function toggleBookmark(item, platform) {
+            const key = `${platform}_${item.id}`;
+            if (bookmarks[key]) {
+                delete bookmarks[key];
+            } else {
+                bookmarks[key] = { ...item, platform, bookmarkedAt: Date.now() };
+            }
+            localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+            updateBookmarkCount();
+            return !bookmarks[key];
+        }
+
+        function updateBookmarkCount() {
+            document.getElementById('bookmarkCount').textContent = Object.keys(bookmarks).length;
+        }
+
+        // Shared fetch wrapper. Unauthenticated GitHub search allows only
+        // 10 requests per minute, so rate limiting is a normal condition here,
+        // not an edge case - it deserves a message that explains itself.
+        async function fetchJson(url, source) {
+            const response = await fetch(url);
+
+            if (response.status === 403 || response.status === 429) {
+                const remaining = response.headers.get('x-ratelimit-remaining');
+                const resetHeader = response.headers.get('x-ratelimit-reset');
+
+                // The x-ratelimit-* headers are only readable when the API
+                // exposes them via CORS, so treat an unreadable header as a
+                // rate limit too - it is by far the most common cause of a 403
+                // on anonymous requests, and a vague message helps nobody.
+                if (response.status === 429 || remaining === null || remaining === '0') {
+                    let waitNote = 'Please wait a minute and try again.';
+                    if (resetHeader) {
+                        const secondsLeft = Math.max(0, Math.ceil(Number(resetHeader) * 1000 - Date.now()) / 1000);
+                        if (Number.isFinite(secondsLeft) && secondsLeft > 0) {
+                            waitNote = `Try again in about ${Math.ceil(secondsLeft / 60)} minute(s).`;
+                        }
+                    }
+                    throw new Error(
+                        `${source} rate limit reached. Anonymous requests are capped ` +
+                        `(GitHub search allows 10 per minute). ${waitNote} ` +
+                        `Cached results are reused for a week, so browsing already-loaded data still works.`
+                    );
+                }
+
+                throw new Error(`${source} refused the request (HTTP 403).`);
+            }
+
+            if (!response.ok) {
+                throw new Error(`${source} error: HTTP ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        // API Functions - GitHub
+        async function fetchGitHubRepos() {
+            try {
+                const dateFrom = document.getElementById('dateFrom').value || getDefaultDateFrom();
+                const dateTo = document.getElementById('dateTo').value || getDefaultDateTo();
+
+                const cacheKey = getCacheKey('github', { dateFrom: dateFrom, dateTo: dateTo });
+                const cached = localStorage.getItem(cacheKey);
+
+                if (cached) {
+                    const cachedData = JSON.parse(cached);
+                    if (isCacheValid(cachedData)) {
+                        console.log('Using cached GitHub data');
+                        return cachedData.items;
+                    }
+                }
+
+                const query = `created:${dateFrom}..${dateTo}`;
+                const url = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=30`;
+
+                const data = await fetchJson(url, 'GitHub');
+                const items = (data.items || []).map(repo => ({
+                    id: repo.id,
+                    name: repo.name,
+                    author: repo.owner.login,
+                    description: repo.description,
+                    url: repo.html_url,
+                    stars: repo.stargazers_count,
+                    forks: repo.forks_count,
+                    watchers: repo.watchers_count,
+                    issues: repo.open_issues_count,
+                    language: repo.language,
+                    topics: repo.topics || [],
+                    created_at: repo.created_at,
+                    updated_at: repo.updated_at,
+                    platform: 'github'
+                }));
+
+                localStorage.setItem(cacheKey, JSON.stringify({ items, timestamp: Date.now() }));
+                return items;
+            } catch (error) {
+                console.error('Error fetching GitHub repos:', error);
+                throw error;
+            }
+        }
+
+        // API Functions - HuggingFace
+        async function fetchHuggingFaceModels() {
+            try {
+                const cacheKey = getCacheKey('huggingface');
+                const cached = localStorage.getItem(cacheKey);
+
+                if (cached) {
+                    const cachedData = JSON.parse(cached);
+                    if (isCacheValid(cachedData)) {
+                        console.log('Using cached HuggingFace data');
+                        return cachedData.items;
+                    }
+                }
+
+                // HuggingFace trending models endpoint
+                const url = `${HUGGINGFACE_API}/models?sort=trending&limit=30`;
+                const data = await fetchJson(url, 'HuggingFace');
+                const items = data.map(model => ({
+                    id: model.id || model.modelId,
+                    name: model.modelId || model.id,
+                    author: model.author || 'Unknown',
+                    description: model.description || model.cardData?.description || 'No description available',
+                    url: `https://huggingface.co/${model.modelId || model.id}`,
+                    stars: model.likes || 0,
+                    downloads: model.downloads || 0,
+                    language: model.pipeline_tag || 'N/A',
+                    topics: model.tags || [],
+                    created_at: model.createdAt || model.created_at,
+                    updated_at: model.lastModified || model.updated_at,
+                    platform: 'huggingface',
+                    category: model.pipeline_tag
+                }));
+
+                localStorage.setItem(cacheKey, JSON.stringify({ items, timestamp: Date.now() }));
+                return items;
+            } catch (error) {
+                console.error('Error fetching HuggingFace models:', error);
+                throw error;
+            }
+        }
+
+        // Global Search
+        //
+        // The search box filters whatever is currently loaded. These functions
+        // do the other thing people expect: query the platform itself, so you
+        // can find any repo or model, not only the ones already on screen.
+        async function searchGitHubRepos(query) {
+            const cacheKey = getCacheKey('github_search', { q: query });
+            const cached = localStorage.getItem(cacheKey);
+
+            if (cached) {
+                const cachedData = JSON.parse(cached);
+                if (isCacheValid(cachedData, SEARCH_CACHE_DURATION)) {
+                    console.log('Using cached GitHub search results');
+                    return cachedData.items;
+                }
+            }
+
+            const url = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=30`;
+            const data = await fetchJson(url, 'GitHub');
+
+            const items = (data.items || []).map(repo => ({
+                id: repo.id,
+                name: repo.name,
+                author: repo.owner.login,
+                description: repo.description,
+                url: repo.html_url,
+                stars: repo.stargazers_count,
+                forks: repo.forks_count,
+                watchers: repo.watchers_count,
+                issues: repo.open_issues_count,
+                language: repo.language,
+                topics: repo.topics || [],
+                created_at: repo.created_at,
+                updated_at: repo.updated_at,
+                platform: 'github'
+            }));
+
+            localStorage.setItem(cacheKey, JSON.stringify({ items, timestamp: Date.now() }));
+            return items;
+        }
+
+        async function searchHuggingFaceModels(query) {
+            const cacheKey = getCacheKey('huggingface_search', { q: query });
+            const cached = localStorage.getItem(cacheKey);
+
+            if (cached) {
+                const cachedData = JSON.parse(cached);
+                if (isCacheValid(cachedData, SEARCH_CACHE_DURATION)) {
+                    console.log('Using cached HuggingFace search results');
+                    return cachedData.items;
+                }
+            }
+
+            const url = `${HUGGINGFACE_API}/models?search=${encodeURIComponent(query)}&sort=downloads&direction=-1&limit=30`;
+            const data = await fetchJson(url, 'HuggingFace');
+
+            const items = data.map(model => ({
+                id: model.id || model.modelId,
+                name: model.modelId || model.id,
+                author: model.author || (model.modelId || model.id || '').split('/')[0] || 'Unknown',
+                description: model.description || model.cardData?.description || 'No description available',
+                url: `https://huggingface.co/${model.modelId || model.id}`,
+                stars: model.likes || 0,
+                downloads: model.downloads || 0,
+                language: model.pipeline_tag || 'N/A',
+                topics: model.tags || [],
+                created_at: model.createdAt || model.created_at,
+                updated_at: model.lastModified || model.updated_at,
+                platform: 'huggingface',
+                category: model.pipeline_tag
+            }));
+
+            localStorage.setItem(cacheKey, JSON.stringify({ items, timestamp: Date.now() }));
+            return items;
+        }
+
+        function renderSearchScopeBanner() {
+            const banner = document.getElementById('searchScopeBanner');
+
+            if (!searchMode) {
+                // Browsing GitHub means "repos created in this window, ranked by
+                // stars" - which is not the same as trending. Say so plainly
+                // rather than letting the UI imply otherwise.
+                if (currentPlatform === 'github') {
+                    const from = document.getElementById('dateFrom').value;
+                    const to = document.getElementById('dateTo').value;
+                    banner.innerHTML = `
+                        <div class="search-scope-banner">
+                            <div class="scope-text">
+                                🔭 Browsing repositories <strong>created</strong> between
+                                <span class="scope-query">${escapeHtml(from)}</span> and
+                                <span class="scope-query">${escapeHtml(to)}</span>, ranked by stars.
+                                Looking for a specific repo? Type it above and press Enter.
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    banner.innerHTML = '';
+                }
                 return;
             }
 
-            // Update results count
-            document.getElementById('resultsCount').textContent = repos.length;
-
-            const html = `
-                <div class="repo-grid">
-                    ${repos.map((repo, index) => `
-                        <div class="repo-card" onclick="window.open('${repo.html_url}', '_blank')">
-                            <div class="repo-rank">${index + 1}</div>
-                            <h3 class="repo-name">${repo.name}</h3>
-                            <div class="repo-author">by ${repo.owner.login}</div>
-                            <p class="repo-description">${repo.description || 'No description available'}</p>
-
-                            <div class="repo-meta">
-                                <div class="repo-meta-item" title="Created ${new Date(repo.created_at).toLocaleDateString()}">
-                                    📅 ${formatRelativeTime(repo.created_at)}
-                                </div>
-                                <div class="repo-meta-item" title="Last updated ${new Date(repo.updated_at).toLocaleDateString()}">
-                                    🔄 ${formatRelativeTime(repo.updated_at)}
-                                </div>
-                                ${repo.open_issues_count > 0 ? `
-                                    <div class="repo-meta-item">
-                                        🔧 ${formatNumber(repo.open_issues_count)} issues
-                                    </div>
-                                ` : ''}
-                            </div>
-
-                            <div class="repo-stats">
-                                <div class="stat">
-                                    <span class="stat-icon">★</span>
-                                    <span>${formatNumber(repo.stargazers_count)}</span>
-                                </div>
-                                <div class="stat">
-                                    <span class="stat-icon">⑂</span>
-                                    <span>${formatNumber(repo.forks_count)}</span>
-                                </div>
-                                ${repo.watchers_count ? `
-                                    <div class="stat">
-                                        <span class="stat-icon">👁</span>
-                                        <span>${formatNumber(repo.watchers_count)}</span>
-                                    </div>
-                                ` : ''}
-                            </div>
-
-                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                                ${repo.language ? `<div class="repo-language">${repo.language}</div>` : ''}
-                                ${repo.topics && repo.topics.length > 0 ? `
-                                    <div class="repo-topics">
-                                        ${repo.topics.slice(0, 3).map(topic =>
-                                            `<span class="topic-tag">${topic}</span>`
-                                        ).join('')}
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `).join('')}
+            const platformLabel = searchMode.platform === 'huggingface' ? 'HuggingFace' : 'GitHub';
+            banner.innerHTML = `
+                <div class="search-scope-banner">
+                    <div class="scope-text">
+                        🔍 Searching all of ${platformLabel} for
+                        <span class="scope-query">"${escapeHtml(searchMode.query)}"</span>
+                        — date range and browse filters don't apply here.
+                    </div>
+                    <button class="toolbar-button" id="clearSearchBtn">✕ Back to browse</button>
                 </div>
             `;
 
-            container.innerHTML = html;
+            document.getElementById('clearSearchBtn').addEventListener('click', exitSearchMode);
+        }
 
-            // Update last update timestamp
-            const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) {
-                const cachedData = JSON.parse(cached);
-                const updateDate = new Date(cachedData.timestamp);
-                document.getElementById('lastUpdate').textContent = updateDate.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
+        async function runGlobalSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+
+            if (!query) {
+                exitSearchMode();
+                return;
+            }
+
+            if (currentPlatform === 'llmarena') {
+                renderLLMArenaNotice();
+                return;
+            }
+
+            searchMode = { platform: currentPlatform, query };
+            renderSearchScopeBanner();
+            document.getElementById('contentContainer').innerHTML =
+                '<div class="loading">Searching ' + escapeHtml(query) + '</div>';
+
+            try {
+                allItems = currentPlatform === 'huggingface'
+                    ? await searchHuggingFaceModels(query)
+                    : await searchGitHubRepos(query);
+
+                populateLanguageFilter();
+
+                // The search term already selected these results upstream, so
+                // re-filtering by the same text client-side would only hide
+                // matches that live in fields the API searched and we don't.
+                filteredItems = allItems;
+                applyFiltersAndSort({ skipTextFilter: true });
+            } catch (error) {
+                renderError(error);
             }
         }
 
-        // Show error message
-        function showError(error) {
-            const container = document.getElementById('repoContainer');
-            container.innerHTML = `
-                <div class="error-message">
-                    <strong>Unable to load repositories</strong><br>
-                    ${error.message || 'Please try again later.'}
+        function exitSearchMode() {
+            if (!searchMode) return;
+            searchMode = null;
+            document.getElementById('searchInput').value = '';
+            renderSearchScopeBanner();
+            switchPlatform(currentPlatform);
+        }
+
+        // LLM Arena
+        //
+        // This tab previously shipped hardcoded placeholder ELO scores that were
+        // presented as real leaderboard standings. Publishing invented benchmark
+        // numbers under a real leaderboard's name is worse than publishing
+        // nothing, so the fake data has been removed. Until a real data source is
+        // wired up, the tab links to the live leaderboard instead.
+        const LLM_ARENA_URL = 'https://lmarena.ai/leaderboard';
+
+        function renderLLMArenaNotice() {
+            document.getElementById('searchScopeBanner').innerHTML = '';
+            document.getElementById('resultsCount').textContent = '0';
+            document.getElementById('contentContainer').innerHTML = `
+                <div class="notice-panel">
+                    <div class="notice-icon">\u{1F3C6}</div>
+                    <h2>LLM Arena \u2014 not connected yet</h2>
+                    <p>
+                        Live ELO standings aren't wired into this app yet. Rather than show
+                        placeholder numbers that look real, this tab points you at the source.
+                    </p>
+                    <a class="notice-link" href="${LLM_ARENA_URL}" target="_blank" rel="noopener noreferrer">
+                        Open the live LMArena leaderboard \u2192
+                    </a>
+                    <p class="notice-footnote">
+                        Fetching real standings needs a small server-side proxy (the public
+                        leaderboard has no browser-accessible API). It's on the roadmap.
+                    </p>
                 </div>
             `;
         }
 
-        // Populate language filter dropdown
+        // Date helpers
+        function getDefaultDateFrom() {
+            const date = new Date();
+            date.setDate(date.getDate() - 7);
+            return date.toISOString().split('T')[0];
+        }
+
+        function getDefaultDateTo() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        // Render Functions
+        function renderItems(items) {
+            const container = document.getElementById('contentContainer');
+
+            if (!items || items.length === 0) {
+                document.getElementById('resultsCount').textContent = '0';
+                container.innerHTML = searchMode
+                    ? `<div class="error-message">No ${escapeHtml(searchMode.platform === 'huggingface' ? 'HuggingFace' : 'GitHub')} results for "${escapeHtml(searchMode.query)}".</div>`
+                    : '<div class="error-message">No items match your filters.</div>';
+                return;
+            }
+
+            document.getElementById('resultsCount').textContent = items.length;
+
+            const viewClass = `repo-${currentView}`;
+            let html = `<div class="${viewClass}">`;
+
+            items.forEach((item, index) => {
+                html += renderCard(item, index);
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+
+            // Update last update timestamp
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // Card click handlers - the URL lives in a data attribute and has
+            // already been validated by safeUrl(), so nothing executable can
+            // reach the DOM from an API response.
+            container.querySelectorAll('.repo-card').forEach(card => {
+                const url = card.dataset.url;
+                if (!url) return;
+                card.addEventListener('click', () => {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                });
+            });
+
+            // Add bookmark click handlers
+            container.querySelectorAll('.bookmark-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const itemId = btn.dataset.itemId;
+                    const item = items.find(i => String(i.id) === itemId);
+                    if (item) {
+                        // Use the item's own platform, not the active tab - the
+                        // bookmarks view mixes items from several platforms.
+                        toggleBookmark(item, item.platform || currentPlatform);
+                        btn.classList.toggle('bookmarked');
+                        btn.textContent = btn.classList.contains('bookmarked') ? '⭐' : '☆';
+                    }
+                });
+            });
+        }
+
+        function renderCard(item, index) {
+            const bookmarked = isBookmarked(item.id, item.platform);
+            const url = safeUrl(item.url);
+
+            return `
+                <div class="repo-card" data-url="${escapeHtml(url)}">
+                    <div class="bookmark-btn ${bookmarked ? 'bookmarked' : ''}" data-item-id="${escapeHtml(item.id)}">
+                        ${bookmarked ? '⭐' : '☆'}
+                    </div>
+                    <div class="repo-rank">${index + 1}</div>
+
+                    <div class="platform-badge ${escapeHtml(item.platform)}">${escapeHtml(item.platform)}</div>
+
+                    <h3 class="repo-name">${escapeHtml(item.name)}</h3>
+                    <div class="repo-author">by ${escapeHtml(item.author)}</div>
+                    <p class="repo-description">${escapeHtml(item.description) || 'No description available'}</p>
+
+                    ${item.platform === 'github' || item.platform === 'huggingface' ? `
+                        <div class="repo-meta">
+                            <div class="repo-meta-item" title="Created ${new Date(item.created_at).toLocaleDateString()}">
+                                📅 ${formatRelativeTime(item.created_at)}
+                            </div>
+                            <div class="repo-meta-item" title="Last updated ${new Date(item.updated_at).toLocaleDateString()}">
+                                🔄 ${formatRelativeTime(item.updated_at)}
+                            </div>
+                            ${item.issues > 0 ? `
+                                <div class="repo-meta-item">
+                                    🔧 ${formatNumber(item.issues)} issues
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+
+                    <div class="repo-stats">
+                        ${item.stars !== undefined ? `
+                            <div class="stat">
+                                <span class="stat-icon">★</span>
+                                <span>${formatNumber(item.stars)}</span>
+                            </div>
+                        ` : ''}
+                        ${item.forks !== undefined ? `
+                            <div class="stat">
+                                <span class="stat-icon">⑂</span>
+                                <span>${formatNumber(item.forks)}</span>
+                            </div>
+                        ` : ''}
+                        ${item.downloads !== undefined ? `
+                            <div class="stat">
+                                <span class="stat-icon">⬇</span>
+                                <span>${formatNumber(item.downloads)}</span>
+                            </div>
+                        ` : ''}
+                        ${item.elo !== undefined ? `
+                            <div class="stat">
+                                <span class="stat-icon">🏆</span>
+                                <span>ELO: ${item.elo}</span>
+                            </div>
+                        ` : ''}
+                        ${item.votes !== undefined ? `
+                            <div class="stat">
+                                <span class="stat-icon">🗳️</span>
+                                <span>${formatNumber(item.votes)} votes</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                        ${item.language ? `<div class="repo-language">${escapeHtml(item.language)}</div>` : ''}
+                        ${item.topics && item.topics.length > 0 ? `
+                            <div class="repo-topics">
+                                ${item.topics.slice(0, 3).map(topic =>
+                                    `<span class="topic-tag">${escapeHtml(topic)}</span>`
+                                ).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Filter and Sort
         function populateLanguageFilter() {
-            const languages = [...new Set(allRepos.map(repo => repo.language).filter(Boolean))].sort();
+            const languages = [...new Set(allItems.map(item => item.language).filter(Boolean))].sort();
             const select = document.getElementById('languageFilter');
 
-            // Keep the "All Languages" option
-            select.innerHTML = '<option value="">All Languages</option>';
-
+            select.innerHTML = '';
             languages.forEach(lang => {
                 const option = document.createElement('option');
                 option.value = lang;
@@ -865,79 +1557,222 @@
             });
         }
 
-        // Apply filters and sorting
-        function applyFiltersAndSort() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const selectedLanguage = document.getElementById('languageFilter').value;
+        function applyFiltersAndSort({ skipTextFilter = false } = {}) {
+            const searchTerm = skipTextFilter ? '' : document.getElementById('searchInput').value.toLowerCase();
+            const selectedLanguages = Array.from(document.getElementById('languageFilter').selectedOptions).map(opt => opt.value);
+            const selectedCategory = document.getElementById('categoryFilter').value;
             const sortBy = document.getElementById('sortBy').value;
 
-            // Filter repos
-            filteredRepos = allRepos.filter(repo => {
+            // Filter items
+            filteredItems = allItems.filter(item => {
                 const matchesSearch = !searchTerm ||
-                    repo.name.toLowerCase().includes(searchTerm) ||
-                    (repo.description && repo.description.toLowerCase().includes(searchTerm)) ||
-                    repo.owner.login.toLowerCase().includes(searchTerm);
+                    item.name.toLowerCase().includes(searchTerm) ||
+                    (item.description && item.description.toLowerCase().includes(searchTerm)) ||
+                    item.author.toLowerCase().includes(searchTerm);
 
-                const matchesLanguage = !selectedLanguage || repo.language === selectedLanguage;
+                const matchesLanguage = selectedLanguages.length === 0 || selectedLanguages.includes(item.language);
+                const matchesCategory = !selectedCategory || item.category === selectedCategory;
 
-                return matchesSearch && matchesLanguage;
+                return matchesSearch && matchesLanguage && matchesCategory;
             });
 
-            // Sort repos
-            filteredRepos.sort((a, b) => {
+            // Sort items
+            filteredItems.sort((a, b) => {
                 switch (sortBy) {
                     case 'stars':
-                        return b.stargazers_count - a.stargazers_count;
+                        return (b.stars || b.elo || 0) - (a.stars || a.elo || 0);
                     case 'forks':
-                        return b.forks_count - a.forks_count;
+                        return (b.forks || 0) - (a.forks || 0);
                     case 'updated':
                         return new Date(b.updated_at) - new Date(a.updated_at);
                     case 'created':
                         return new Date(b.created_at) - new Date(a.created_at);
                     case 'issues':
-                        return b.open_issues_count - a.open_issues_count;
+                        return (b.issues || 0) - (a.issues || 0);
                     default:
                         return 0;
                 }
             });
 
-            renderRepos(filteredRepos);
+            renderItems(filteredItems);
         }
 
-        // Setup event listeners
-        function setupEventListeners() {
-            document.getElementById('searchInput').addEventListener('input', applyFiltersAndSort);
-            document.getElementById('languageFilter').addEventListener('change', applyFiltersAndSort);
-            document.getElementById('sortBy').addEventListener('change', applyFiltersAndSort);
+        // Platform Switching
+        function renderError(error) {
+            document.getElementById('contentContainer').innerHTML = `
+                <div class="error-message">
+                    <strong>Unable to load data</strong><br>
+                    ${escapeHtml(error && error.message ? error.message : 'Please try again later.')}
+                </div>
+            `;
         }
 
-        // Initialize the application
-        async function init() {
-            // Set week banner
-            document.getElementById('weekBanner').textContent = formatWeekBanner();
+        async function switchPlatform(platform) {
+            const platformChanged = platform !== currentPlatform;
+            currentPlatform = platform;
+
+            // Switching platforms leaves search results behind.
+            if (platformChanged && searchMode) {
+                searchMode = null;
+                document.getElementById('searchInput').value = '';
+                renderSearchScopeBanner();
+            }
+
+            // Update active tab
+            document.querySelectorAll('.platform-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.platform === platform);
+            });
+
+            // Show/hide relevant filters
+            document.querySelector('.search-group').style.display = 'flex';
+            document.getElementById('sortGroup').style.display = 'flex';
+            document.getElementById('languageGroup').style.display = 'flex';
+
+            if (platform === 'huggingface') {
+                document.getElementById('categoryGroup').style.display = 'flex';
+                document.getElementById('dateRangeGroup').style.display = 'none';
+                document.getElementById('dateToGroup').style.display = 'none';
+            } else if (platform === 'llmarena') {
+                document.getElementById('categoryGroup').style.display = 'none';
+                document.getElementById('dateRangeGroup').style.display = 'none';
+                document.getElementById('dateToGroup').style.display = 'none';
+                document.getElementById('languageGroup').style.display = 'none';
+                // Nothing to search or sort while the tab has no data source.
+                document.querySelector('.search-group').style.display = 'none';
+                document.getElementById('sortGroup').style.display = 'none';
+            } else {
+                document.getElementById('categoryGroup').style.display = 'none';
+                document.getElementById('dateRangeGroup').style.display = 'flex';
+                document.getElementById('dateToGroup').style.display = 'flex';
+            }
+
+            // LLM Arena has no live data source yet - show the notice instead
+            // of pretending to load something.
+            if (platform === 'llmarena') {
+                allItems = [];
+                filteredItems = [];
+                renderLLMArenaNotice();
+                return;
+            }
+
+            // Show loading
+            document.getElementById('contentContainer').innerHTML = '<div class="loading">Loading discoveries</div>';
 
             try {
-                const repos = await fetchTrendingRepos();
-                allRepos = repos;
-                filteredRepos = repos;
+                // Fetch data based on platform
+                if (platform === 'github') {
+                    allItems = await fetchGitHubRepos();
+                } else if (platform === 'huggingface') {
+                    allItems = await fetchHuggingFaceModels();
+                }
 
+                filteredItems = allItems;
                 populateLanguageFilter();
-                setupEventListeners();
-                renderRepos(filteredRepos);
+                renderSearchScopeBanner();
+                applyFiltersAndSort();
             } catch (error) {
-                showError(error);
+                renderError(error);
             }
+        }
+
+        // View Mode Switching
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('[data-view]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+            renderItems(filteredItems);
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Platform tabs
+            document.querySelectorAll('.platform-tab').forEach(tab => {
+                tab.addEventListener('click', () => switchPlatform(tab.dataset.platform));
+            });
+
+            // View mode buttons
+            document.querySelectorAll('[data-view]').forEach(btn => {
+                btn.addEventListener('click', () => switchView(btn.dataset.view));
+            });
+
+            // Search: typing filters the loaded results; Enter (or the button)
+            // searches the whole platform. While viewing search results the box
+            // holds the query, so typing alone must not re-filter them.
+            document.getElementById('searchInput').addEventListener('input', () => {
+                if (searchMode) return;
+                applyFiltersAndSort();
+            });
+
+            document.getElementById('searchInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    runGlobalSearch();
+                }
+            });
+
+            document.getElementById('globalSearchBtn').addEventListener('click', runGlobalSearch);
+
+            // Filters
+            document.getElementById('languageFilter').addEventListener('change', applyFiltersAndSort);
+            document.getElementById('categoryFilter').addEventListener('change', applyFiltersAndSort);
+            document.getElementById('sortBy').addEventListener('change', applyFiltersAndSort);
+            ['dateFrom', 'dateTo'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    // Date range only applies to browsing, so changing it exits search.
+                    if (searchMode) {
+                        searchMode = null;
+                        document.getElementById('searchInput').value = '';
+                        renderSearchScopeBanner();
+                    }
+                    switchPlatform(currentPlatform);
+                });
+            });
+
+            // Bookmarks button
+            document.getElementById('bookmarksBtn').addEventListener('click', () => {
+                if (Object.keys(bookmarks).length === 0) {
+                    alert('No bookmarks yet! Click the ☆ icon on any item to bookmark it.');
+                    return;
+                }
+
+                // Viewing bookmarks is its own scope - drop any active search.
+                searchMode = null;
+                document.getElementById('searchInput').value = '';
+                renderSearchScopeBanner();
+
+                const bookmarkedItems = Object.values(bookmarks);
+                allItems = bookmarkedItems;
+                filteredItems = bookmarkedItems;
+                populateLanguageFilter();
+                applyFiltersAndSort();
+            });
+
+            // Browse button - leaves bookmarks/search results and reloads the
+            // current platform's normal listing.
+            document.getElementById('browseBtn').addEventListener('click', () => {
+                searchMode = null;
+                document.getElementById('searchInput').value = '';
+                renderSearchScopeBanner();
+                switchPlatform(currentPlatform);
+            });
+        }
+
+        // Initialize
+        async function init() {
+            // Set default dates
+            document.getElementById('dateFrom').value = getDefaultDateFrom();
+            document.getElementById('dateTo').value = getDefaultDateTo();
+
+            updateBookmarkCount();
+            setupEventListeners();
+
+            // Load GitHub by default
+            await switchPlatform('github');
         }
 
         // Run on page load
         init();
-
-        // Optional: Add a refresh button functionality
-        window.refreshRepos = async function() {
-            localStorage.removeItem(CACHE_KEY);
-            document.getElementById('repoContainer').innerHTML = '<div class="loading">Curating this week\'s collection</div>';
-            await init();
-        };
     </script>
 </body>
 </html>

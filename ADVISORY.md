@@ -100,26 +100,29 @@ foundation that can take it.
 
 ## 3. Gaps to PROD
 
-**Blocking**
+**Blocking — all completed in v2.1.0 (2026-08-17)**
 
-- [ ] `/` serves V2 — rename `index-v2.html` to `index.html` (works on Pages *and* Vercel;
-      `vercel.json` then becomes deletable)
-- [ ] Escape HTML in `renderCard` before interpolating API strings; drop the inline
-      `onclick` in favour of an event listener reading a `data-url` attribute
-- [ ] Remove or visibly label the mock LLM Arena data — publishing invented ELO scores as
-      real rankings is the one thing here that could actually cost you credibility
-- [ ] Handle 403/429 from the GitHub API with a message that names the rate limit
-- [ ] Delete `github-shop.html` and the V1 `index.html` (git history keeps them)
+- [x] `/` serves V2 — `index-v2.html` renamed to `index.html`; `vercel.json` deleted
+- [x] Escape HTML in `renderCard` before interpolating API strings; inline `onclick`
+      replaced by a delegated listener reading a validated `data-url`
+- [x] Mock LLM Arena data removed — the tab now links to the live leaderboard
+- [x] Handle 403/429 from the GitHub API with a message that names the rate limit
+- [x] Delete `github-shop.html` and the V1 `index.html` (git history keeps them)
 
 **Nice-to-have**
 
-- [ ] Rename the GitHub view to reflect what it queries (created-in-window, not trending) —
-      or implement real trending, which is Option B
-- [ ] Playwright smoke test in the existing Actions workflow
+- [x] Rename the GitHub view to reflect what it queries (created-in-window, not trending)
+- [x] Playwright smoke test — added as `tests/smoke.js`; not yet wired into Actions
+- [ ] Run `tests/smoke.js` in the existing Actions workflow
 - [ ] "Export bookmarks to JSON" — `localStorage` is the only user data here, and it dies
       with a cleared browser cache; a one-click export *is* the backup story for this app
 - [ ] Custom domain (~$10–12/yr) — HTTPS is already free and automatic on Pages
 - [ ] Split CSS/JS out of the HTML file, incrementally
+
+**Also shipped in v2.1.0 (not on the original list)**
+
+- [x] Platform-wide search — the search box now queries GitHub/HuggingFace directly
+      instead of only filtering already-loaded results
 
 Not needed: server backups (no server-side data), auth (nothing to protect), staging
 environment (solo project), error monitoring at this stage (a static page with no backend —
@@ -128,6 +131,9 @@ revisit if you do Option B).
 ---
 
 ## 4. Recommendation
+
+> **Status update (2026-08-17):** Option A is done and shipped as v2.1.0, along with
+> platform-wide search. The recommendation below stands for what comes next.
 
 **Do Option A this week. Then decide on B with a live V2 in front of you.**
 

@@ -15,7 +15,8 @@ AI Discovery Hub V2 expands beyond GitHub to become a comprehensive discovery pl
 ### 🌐 Multi-Platform Support (V2)
 - **GitHub** - Trending repositories with full statistics
 - **HuggingFace** - Trending AI models and datasets with download counts
-- **LLM Arena** - Chatbot Arena leaderboard with ELO ratings
+- **LLM Arena** - not connected yet; the tab links to the live leaderboard
+  rather than showing placeholder numbers
 - Easy platform switching with dedicated tabs
 - Platform-specific filters and categories
 
@@ -37,6 +38,13 @@ AI Discovery Hub V2 expands beyond GitHub to become a comprehensive discovery pl
 - **Compact View** - Dense grid showing more items at once
 - Seamless switching between views
 
+### 🔍 Platform-Wide Search
+- **Filter as you type** - narrows the results currently on screen
+- **Search everywhere** - press Enter (or click "Search all") to query the whole
+  platform, so you can find any repository or model, not just the ones already loaded
+- Works on GitHub and HuggingFace, with results cached for an hour
+- "Back to browse" returns to the normal listing
+
 ### 🎯 Enhanced Filtering (V2)
 - **Multi-Language Selection** - Select multiple programming languages simultaneously
 - **Category Filters** - AI/ML categories (NLP, Computer Vision, Audio, etc.)
@@ -44,7 +52,8 @@ AI Discovery Hub V2 expands beyond GitHub to become a comprehensive discovery pl
 - **Smart Sorting** - Multiple sort criteria with platform-specific options
 
 ### Core Functionality
-- **Real-time Search** - Instantly filter items by name, description, or author
+- **Real-time Search** - Instantly filter items by name, description, or author,
+  or search the whole platform with Enter
 - **Smart Caching** - Platform and date-specific cache system
 - **Multiple Sort Options** - Sort by stars, forks, recently updated, created, or issues
 - **Responsive Design** - Works perfectly on desktop, tablet, and mobile
@@ -72,7 +81,7 @@ Each repository card displays:
 ### Major Changes
 1. **Multi-Platform Architecture** - Completely restructured to support multiple data sources
 2. **HuggingFace Integration** - Browse trending AI models and datasets
-3. **LLM Arena Integration** - View chatbot leaderboard rankings
+3. **LLM Arena tab** - links out to the live leaderboard (no live data source yet)
 4. **Bookmarking System** - Save and organize your favorite discoveries
 5. **View Modes** - Three different viewing layouts (Grid, List, Compact)
 6. **Date Range Selection** - Historical data browsing with custom date ranges
@@ -80,7 +89,7 @@ Each repository card displays:
 8. **Enhanced UI** - Platform-specific badges, improved stats, better mobile support
 
 ### Breaking Changes
-- Main file renamed from `github-shop.html` to `index-v2.html`
+- Main file renamed from `github-shop.html` to `index.html`
 - Cache keys now platform-specific
 - New bookmark data structure
 
@@ -88,11 +97,9 @@ See [CHANGELOG.md](CHANGELOG.md) for complete details.
 
 ## Demo
 
-### V2 (Latest)
-Open `index-v2.html` in any modern web browser
+Open `index.html` in any modern web browser, or visit the deployed GitHub Pages site.
 
-### V1 (Legacy)
-Open `index.html` or `github-shop.html` for the original GitHub-only version
+The V1 GitHub-only version (`github-shop.html`) has been removed; it remains in git history.
 
 ## Installation
 
@@ -104,18 +111,17 @@ cd github-nexus
 
 2. Open the HTML file:
 ```bash
-# V2 (Recommended)
 # On Windows
-start index-v2.html
+start index.html
 
 # On macOS
-open index-v2.html
+open index.html
 
 # On Linux
-xdg-open index-v2.html
+xdg-open index.html
 ```
 
-Or simply drag and drop `index-v2.html` into your browser.
+Or simply drag and drop `index.html` into your browser.
 
 ## Usage
 
@@ -178,11 +184,30 @@ Switch between three viewing layouts:
 
 ## API Rate Limits
 
-The GitHub API has rate limits for unauthenticated requests:
-- 60 requests per hour per IP address
-- The weekly caching system helps stay within these limits
+The GitHub API rate-limits unauthenticated requests:
+- **10 requests per minute** for the search endpoints this app uses
+- 60 requests per hour for other REST endpoints
 
-For higher rate limits, you can add a GitHub Personal Access Token to the code.
+Results are cached in `localStorage` for a week (searches for an hour), which keeps
+normal browsing well inside those limits. When a limit is hit the app says so
+explicitly, including roughly how long to wait.
+
+Raising the limit means holding a token, which a purely client-side app cannot do
+safely - a token shipped in the page is a public token. The supported route is a small
+server-side proxy that holds the credential; see `ADVISORY.md`.
+
+## Testing
+
+Browser smoke tests live in `tests/smoke.js`. All third-party APIs are mocked, so the
+tests run offline:
+
+```bash
+npm install -D playwright && npx playwright install chromium
+node tests/smoke.js
+```
+
+They cover HTML escaping of API-supplied text, platform-wide search, rate-limit
+messaging, tab navigation, and the bookmark round-trip.
 
 ## Future Enhancements
 
@@ -190,14 +215,15 @@ Potential features for future versions:
 - ✅ ~~Saved favorites/bookmarks~~ (Implemented in V2)
 - ✅ ~~Trending time ranges~~ (Implemented in V2 with date picker)
 - ✅ ~~Multi-platform support~~ (Implemented in V2)
-- Side-by-side comparison view (Compare button placeholder)
+- ✅ ~~Search across the whole platform, not just loaded results~~ (Implemented)
+- Side-by-side comparison view
 - User authentication with GitHub/HuggingFace OAuth
 - Dark/light theme toggle
 - Share specific searches via URL
 - Export bookmarks/data to CSV/JSON
 - GitHub star/unstar from the app
 - More platforms (NPM, PyPI, Docker Hub)
-- Actual LLM Arena API integration (currently mock data)
+- Actual LLM Arena data (needs a server-side proxy; the tab currently links out)
 - Advanced data visualizations and charts
 - Browser extension version
 
@@ -227,3 +253,7 @@ Created with Claude Code
 ---
 
 **Note:** This is a client-side only application. No backend or server setup is required.
+
+**Security note:** All text coming from third-party APIs is HTML-escaped before it
+reaches the DOM, and outbound links are restricted to `http(s)` URLs. If you extend
+`renderCard()`, keep new fields going through `escapeHtml()` / `safeUrl()`.
