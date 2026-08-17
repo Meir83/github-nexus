@@ -5,6 +5,80 @@ All notable changes to AI Discovery Hub (formerly GitHub Nexus) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-08-17
+
+Closes the remaining items from `ADVISORY.md`.
+
+### Added
+
+- **Bookmark export and import.** Bookmarks live in `localStorage`, which a
+  cleared cache wipes without warning - export is this app's whole backup story,
+  so import ships with it. Export downloads a dated JSON file; import merges into
+  the existing set rather than replacing it, so restoring on a device that already
+  has bookmarks never deletes them. Malformed files are rejected with a message
+  and leave existing bookmarks untouched.
+- **Tests run in CI.** The Actions workflow now runs `tests/smoke.js` on every
+  push and pull request, and the Pages deploy job depends on it - a failing test
+  can no longer reach production. Playwright is installed with `--no-save`, so the
+  repository still carries no `package.json` or lockfile.
+- Smoke coverage for the export/import round-trip, including the malformed-file
+  path (36 checks total).
+
+### Changed
+
+- **Split the single file into `index.html` + `css/styles.css` + `js/app.js`.**
+  The 1,776-line monolith is now 150 lines of markup, 837 of CSS and 888 of JS.
+  There is still no build step and no dependencies: Pages serves the files as-is
+  and opening `index.html` from disk behaves identically.
+
+## [2.1.0] - 2026-08-17
+
+### Fixed
+
+- **Production served V1.** GitHub Pages serves `index.html`, which still held the
+  legacy V1 app, so visitors never saw the V2 release. V2 is now `index.html`.
+  `vercel.json` (which rewrote `/` to `index-v2.html`) is no longer needed and has
+  been removed - the rename works on any static host.
+- **Cross-site scripting.** Repository names, descriptions, authors, languages,
+  topics and URLs from the GitHub and HuggingFace APIs were interpolated straight
+  into `innerHTML`, and each card carried an inline `onclick` built from the API's
+  URL. All external text now passes through `escapeHtml()`, links are validated by
+  `safeUrl()` (http/https only) and cards use a delegated click handler.
+- **Rate limits were invisible.** Unauthenticated GitHub search allows only 10
+  requests per minute; hitting it produced a generic failure. A shared `fetchJson()`
+  wrapper now detects 403/429 and explains the limit, including when to retry.
+- **Language filter stayed hidden** after visiting the LLM Arena tab.
+- **Bookmarks used the active tab's platform** rather than the item's own, which
+  could mis-key bookmarks toggled from the mixed-platform bookmarks view.
+
+### Added
+
+- **Platform-wide search.** The search box previously filtered only the items
+  already loaded. Pressing Enter (or clicking "Search all") now queries GitHub or
+  HuggingFace directly, so any repository or model is reachable - not just the
+  current listing. A banner shows the active scope with a "Back to browse" exit;
+  search results are cached for an hour.
+- **Browse-scope banner** stating that the GitHub listing shows repositories
+  *created* in the selected window, ranked by stars.
+- **Browser smoke tests** (`tests/smoke.js`) covering escaping, search, rate-limit
+  messaging, navigation and bookmarks. All APIs are mocked; they run offline.
+- **`ADVISORY.md`** - project assessment and the roadmap to production.
+
+### Changed
+
+- **LLM Arena no longer ships fabricated data.** The tab shipped hardcoded ELO
+  scores (GPT-4 1365, Claude 3.5 Sonnet 1348, Gemini Pro 1320) presented as real
+  standings; by 2026 they were badly stale as well as invented. The tab now links to
+  the live leaderboard and states plainly that live data needs a server-side proxy.
+- Date filters relabelled "Created After" / "Created Before" to match what they query.
+- Removed the "Compare" button, which only raised a "coming soon" alert, and replaced
+  it with a "Browse" button that returns to the current platform's listing.
+
+### Removed
+
+- `github-shop.html` and the V1 `index.html` (both preserved in git history).
+- `vercel.json`.
+
 ## [2.0.0] - 2025-01-25
 
 ### 🎉 Major Release - Multi-Platform Architecture
