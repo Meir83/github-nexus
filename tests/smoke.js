@@ -42,6 +42,42 @@ const SEARCH_HIT = {
   created_at: '2020-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'
 };
 
+// AI-detection fixtures: three that should be recognised, and two that must
+// NOT be - a false positive puts an install prompt on an uninstallable repo.
+const AI_REPOS = [
+  { id: 201, name: 'mcp-server-postgres', owner: { login: 'modelcontextprotocol' },
+    description: 'An MCP server exposing Postgres to any client.',
+    html_url: 'https://github.com/modelcontextprotocol/mcp-server-postgres',
+    stargazers_count: 4300, forks_count: 210, watchers_count: 9, open_issues_count: 4,
+    language: 'TypeScript', topics: ['mcp', 'model-context-protocol'],
+    created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-15T00:00:00Z' },
+  { id: 202, name: 'pdf-skill', owner: { login: 'anthropics' },
+    description: 'A Claude skill for reading and filling PDF forms.',
+    html_url: 'https://github.com/anthropics/pdf-skill',
+    stargazers_count: 2100, forks_count: 90, watchers_count: 4, open_issues_count: 1,
+    language: 'Python', topics: ['claude-skill', 'agent-skills'],
+    created_at: '2026-08-02T00:00:00Z', updated_at: '2026-08-14T00:00:00Z' },
+  { id: 203, name: 'swarmkit', owner: { login: 'labs' },
+    description: 'Framework for building autonomous agents that cooperate.',
+    html_url: 'https://github.com/labs/swarmkit',
+    stargazers_count: 8800, forks_count: 400, watchers_count: 20, open_issues_count: 12,
+    language: 'Python', topics: ['ai-agents', 'agentic'],
+    created_at: '2026-08-03T00:00:00Z', updated_at: '2026-08-13T00:00:00Z' },
+  // Decoys - plain software that merely sounds vaguely relevant.
+  { id: 204, name: 'redis', owner: { login: 'redis' },
+    description: 'An in-memory database that persists on disk.',
+    html_url: 'https://github.com/redis/redis',
+    stargazers_count: 67000, forks_count: 24000, watchers_count: 100, open_issues_count: 40,
+    language: 'C', topics: ['database', 'cache'],
+    created_at: '2026-08-04T00:00:00Z', updated_at: '2026-08-12T00:00:00Z' },
+  { id: 205, name: 'travel-agent-booking', owner: { login: 'acme' },
+    description: 'Booking portal for travel agents. No machine learning involved.',
+    html_url: 'https://github.com/acme/travel-agent-booking',
+    stargazers_count: 120, forks_count: 8, watchers_count: 2, open_issues_count: 0,
+    language: 'PHP', topics: ['booking', 'travel'],
+    created_at: '2026-08-05T00:00:00Z', updated_at: '2026-08-11T00:00:00Z' }
+];
+
 let pass = 0, fail = 0;
 function check(name, cond, extra = '') {
   if (cond) { pass++; console.log(`  PASS  ${name}`); }
@@ -59,6 +95,7 @@ function check(name, cond, extra = '') {
     const ctx = await browser.newContext({ acceptDownloads: true });
     const page = await ctx.newPage();
     let rateLimitMode = false;
+    let aiMode = false;
 
     await page.route('**/api.github.com/**', async route => {
       if (rateLimitMode) {
@@ -75,9 +112,10 @@ function check(name, cond, extra = '') {
       }
       const url = route.request().url();
       const isSearch = !url.includes('created%3A');
+      const browseItems = aiMode ? AI_REPOS : [GOOD, EVIL];
       return route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify({ items: isSearch ? [SEARCH_HIT] : [GOOD, EVIL] })
+        body: JSON.stringify({ items: isSearch ? [SEARCH_HIT] : browseItems })
       });
     });
     await page.route('**/huggingface.co/api/**', route => route.fulfill({
@@ -202,6 +240,76 @@ function check(name, cond, extra = '') {
     await page.waitForTimeout(500);
     check('malformed import rejected', /Import failed/.test(dialogText), dialogText);
     check('existing bookmarks survived bad import', (await page.locator('#bookmarkCount').textContent()) === '1');
+
+    console.log('\n[11] "Add to my AI" detection and install panel');
+    aiMode = true;
+    await page.evaluate(() => { localStorage.clear(); });
+    await page.reload();
+    await page.waitForSelector('.repo-card', { timeout: 10000 });
+
+    const badges = await page.locator('.ai-badge').allTextContents();
+    check('MCP server detected', badges.some(b => /MCP Server/i.test(b)), badges.join(' | '));
+    check('agent skill detected', badges.some(b => /Agent Skill/i.test(b)), badges.join(' | '));
+    check('AI agent detected', badges.some(b => /AI Agent/i.test(b)), badges.join(' | '));
+    check('exactly 3 repos flagged, decoys ignored', badges.length === 3, `got ${badges.length}: ${badges.join(' | ')}`);
+
+    const redisCard = page.locator('.repo-card:has-text("redis")');
+    check('plain database not flagged', await redisCard.locator('.add-to-ai-btn').count() === 0);
+    const travelCard = page.locator('.repo-card:has-text("travel-agent-booking")');
+    check('non-AI "agent" repo not flagged', await travelCard.locator('.add-to-ai-btn').count() === 0);
+
+    // Open the MCP repo's panel.
+    await page.locator('.repo-card:has-text("mcp-server-postgres")').locator('.add-to-ai-btn').click();
+    await page.waitForSelector('#aiModal.open', { timeout: 5000 });
+    check('modal opened', await page.locator('.modal-card').isVisible());
+    check('card did not also open a new tab', ctx.pages().length === 1, `${ctx.pages().length} pages`);
+
+    const cloneCode = await page.locator('.install-code').first().textContent();
+    check('clone command is real and repo-specific',
+      cloneCode.includes('git clone https://github.com/modelcontextprotocol/mcp-server-postgres.git'), cloneCode);
+    check('guessy step is flagged', await page.locator('.install-flag').count() > 0);
+
+    await page.click('.modal-tab:has-text("Cursor")');
+    await page.waitForTimeout(300);
+    check('Cursor tab shows mcpServers config', /mcpServers/.test(await page.locator('.modal-body').textContent()));
+
+    await page.click('#modalAdd');
+    await page.waitForTimeout(300);
+    check('added to stack', (await page.locator('#aiStackCount').textContent()) === '1');
+    check('status starts as want-to-try', /want to try/i.test(await page.locator('.stack-state').textContent()));
+
+    await page.click('#modalToggleStatus');
+    await page.waitForTimeout(200);
+    check('status flips to installed', /installed/i.test(await page.locator('.stack-state').textContent()));
+
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    check('Escape closes the modal', !(await page.locator('#aiModal').evaluate(el => el.classList.contains('open'))));
+    check('card button reflects stack membership',
+      /In your AI stack/i.test(await page.locator('.repo-card:has-text("mcp-server-postgres")').locator('.add-to-ai-btn').textContent()));
+
+    console.log('\n[12] Skill repo gets the skills-folder command');
+    await page.locator('.repo-card:has-text("pdf-skill")').locator('.add-to-ai-btn').click();
+    await page.waitForSelector('#aiModal.open', { timeout: 5000 });
+    const skillCode = await page.locator('.install-code').first().textContent();
+    check('skill installs into ~/.claude/skills/', skillCode.includes('~/.claude/skills/pdf-skill'), skillCode);
+    await page.click('#modalClose');
+    await page.waitForTimeout(200);
+
+    console.log('\n[13] AI stack survives export/import');
+    const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#exportBtn')]);
+    const p2 = await dl2.path();
+    const payload2 = JSON.parse(fs.readFileSync(p2, 'utf8'));
+    check('export carries the AI stack', Object.keys(payload2.aiStack || {}).length === 1);
+
+    await page.evaluate(() => { localStorage.clear(); });
+    await page.reload();
+    await page.waitForSelector('.repo-card', { timeout: 10000 });
+    check('stack cleared', (await page.locator('#aiStackCount').textContent()) === '0');
+    page.once('dialog', d => d.accept());
+    await page.setInputFiles('#importInput', p2);
+    await page.waitForTimeout(500);
+    check('stack restored from file', (await page.locator('#aiStackCount').textContent()) === '1');
 
     check('still no page errors at end', errors.length === 0, errors.join('; '));
     await ctx.close();

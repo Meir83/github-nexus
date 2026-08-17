@@ -40,6 +40,9 @@
                 <button class="toolbar-button" id="browseBtn">
                     🔭 Browse
                 </button>
+                <button class="toolbar-button" id="aiStackBtn" title="Repos you've added to your AI setup">
+                    🤖 My AI Stack (<span id="aiStackCount">0</span>)
+                </button>
                 <button class="toolbar-button" id="exportBtn" title="Download your bookmarks as a JSON file">
                     ⬇ Export
                 </button>
@@ -144,6 +147,9 @@
         <p>Powered by <span class="footer-accent">GitHub</span> · <span class="footer-accent">HuggingFace</span> · <span class="footer-accent">LLM Arena</span></p>
         <p style="margin-top: 0.5rem; opacity: 0.7; font-size: 0.9rem;">Last Updated: <span id="lastUpdate">...</span></p>
     </footer>
+
+    <!-- "Add to my AI" install panel -->
+    <div class="modal-overlay" id="aiModal"></div>
 
     <script src="js/app.js"></script>
 </body>

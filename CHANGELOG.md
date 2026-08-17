@@ -5,6 +5,42 @@ All notable changes to AI Discovery Hub (formerly GitHub Nexus) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-08-17
+
+### Added
+
+- **"Add to my AI".** GitHub repositories that can actually be installed into an
+  AI setup are now detected, badged and actionable: MCP servers, agent skills,
+  agent frameworks and general LLM tooling.
+  - **Detection is scored, not keyword-matched.** Curated repo topics carry the
+    most weight, the repo name less, a description mention least, and a repo must
+    clear a threshold before it is badged. This is deliberate: a false positive
+    puts an install prompt on something uninstallable. Tests assert that `redis`
+    and a travel-booking app called `travel-agent-booking` are both left alone.
+  - **My AI Stack** - a collection separate from bookmarks, with a
+    want-to-try / installed status per entry, persisted in `localStorage` and
+    reachable from the toolbar.
+  - **Install panel** with per-tool instructions for Claude Code, Cursor / VS Code
+    and everything else, with a copy button on every step. MCP servers get a
+    `claude mcp add` scaffold and an editor config snippet; skills get the exact
+    `~/.claude/skills/` clone; frameworks get the package-manager line for their
+    language.
+  - **Guesses are labelled.** Commands derived from the repo URL alone are exact.
+    Anything inferred - a published package name, an MCP start command - is
+    tagged "needs a look" and linked to the repo README. Shipping a confident
+    install line that silently fails would repeat the fabricated-data mistake
+    this project just finished removing.
+- 20 further smoke checks covering detection, the decoys, the modal, stack status
+  transitions and the export round-trip (56 total).
+
+### Changed
+
+- The bookmark export file now carries the AI stack alongside bookmarks, and
+  import restores both. Export files written by v2.2.0, which contain only
+  bookmarks, still import correctly.
+- Card badges are offset clear of the bookmark button, which they previously
+  overlapped.
+
 ## [2.2.0] - 2026-08-17
 
 Closes the remaining items from `ADVISORY.md`.

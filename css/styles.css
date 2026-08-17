@@ -636,6 +636,9 @@ main {
 
 .platform-badge {
     display: inline-block;
+    /* The bookmark button is absolutely positioned at top:20px/left:20px and is
+       40px wide, so the badge row has to start clear of it. */
+    margin-left: 52px;
     padding: 0.3rem 0.8rem;
     background: var(--neon-purple);
     color: var(--pure-white);
@@ -834,4 +837,286 @@ footer p {
     .toolbar-left {
         flex-direction: column;
     }
+}
+
+/* ---------------------------------------------------------------------------
+   "Add to my AI"
+   --------------------------------------------------------------------------- */
+
+.ai-badge {
+    display: inline-block;
+    vertical-align: top;
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.7rem;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    color: var(--space-dark);
+}
+
+.ai-badge.mcp { background: var(--neon-green); }
+.ai-badge.skill { background: var(--electric-cyan); }
+.ai-badge.agent { background: var(--neon-purple); color: var(--pure-white); }
+.ai-badge.llmtool { background: #ffb703; }
+
+.add-to-ai-btn {
+    width: 100%;
+    margin-top: 1.25rem;
+    padding: 0.7rem 1rem;
+    background: transparent;
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.add-to-ai-btn:hover {
+    background: var(--neon-green);
+    color: var(--space-dark);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.35);
+}
+
+.add-to-ai-btn.added {
+    border-color: var(--border-gray);
+    color: var(--text-gray);
+}
+
+.add-to-ai-btn.added:hover {
+    background: var(--space-light);
+    color: var(--off-white);
+    box-shadow: none;
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 8, 15, 0.85);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    padding: 2rem 1rem;
+    overflow-y: auto;
+}
+
+.modal-overlay.open {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    margin: auto;
+    background: var(--space-medium);
+    border: 1px solid var(--electric-cyan);
+    border-radius: 12px;
+    box-shadow: 0 0 50px var(--glow-cyan);
+    padding: 2.5rem;
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--border-gray);
+    border-radius: 50%;
+    color: var(--text-gray);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.modal-close:hover {
+    border-color: var(--neon-pink);
+    color: var(--neon-pink);
+}
+
+.modal-head h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.6rem;
+    color: var(--pure-white);
+    margin: 0.5rem 0 0.25rem;
+    word-break: break-word;
+}
+
+.modal-author {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.85rem;
+    color: var(--electric-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.modal-desc {
+    color: var(--text-gray);
+    margin-top: 0.75rem;
+}
+
+.modal-stack-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+}
+
+.stack-state {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.85rem;
+    color: var(--neon-green);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: auto;
+}
+
+.toolbar-button.primary {
+    background: linear-gradient(135deg, var(--neon-blue), var(--electric-cyan));
+    border-color: var(--electric-cyan);
+    color: var(--pure-white);
+}
+
+.modal-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border-gray);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.modal-tab {
+    padding: 0.5rem 1.2rem;
+    background: transparent;
+    border: 1px solid var(--border-gray);
+    border-radius: 6px;
+    color: var(--text-gray);
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.modal-tab:hover { border-color: var(--electric-cyan); color: var(--electric-cyan); }
+
+.modal-tab.active {
+    background: var(--electric-cyan);
+    border-color: var(--electric-cyan);
+    color: var(--space-dark);
+    font-weight: 700;
+}
+
+.install-step { margin-bottom: 1.75rem; }
+
+.install-step-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.install-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--electric-cyan);
+    color: var(--space-dark);
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.install-step-label {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.95rem;
+    color: var(--off-white);
+    font-weight: 600;
+}
+
+.install-flag {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255, 183, 3, 0.15);
+    border: 1px solid rgba(255, 183, 3, 0.5);
+    color: #ffb703;
+}
+
+.install-code {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--border-gray);
+    border-left: 3px solid var(--electric-cyan);
+    border-radius: 6px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--neon-green);
+    white-space: pre;
+}
+
+.copy-btn {
+    margin-top: 0.5rem;
+    padding: 0.35rem 0.9rem;
+    background: transparent;
+    border: 1px solid var(--border-gray);
+    border-radius: 4px;
+    color: var(--text-gray);
+    font-family: 'Oxanium', sans-serif;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.copy-btn:hover { border-color: var(--electric-cyan); color: var(--electric-cyan); }
+
+.install-note {
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+    color: var(--text-gray);
+    line-height: 1.5;
+}
+
+.modal-footnote {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-gray);
+    font-size: 0.8rem;
+    color: var(--text-gray);
+}
+
+.modal-footnote a { color: var(--electric-cyan); }
+
+@media (max-width: 768px) {
+    .modal-card { padding: 1.75rem 1.25rem; }
+    .modal-head h2 { font-size: 1.3rem; }
 }

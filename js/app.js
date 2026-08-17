@@ -104,8 +104,8 @@ const BOOKMARK_EXPORT_VERSION = 1;
 
 function exportBookmarks() {
     const count = Object.keys(bookmarks).length;
-    if (count === 0) {
-        alert('No bookmarks to export yet. Click the ☆ icon on any item first.');
+    if (count === 0 && Object.keys(aiStack).length === 0) {
+        alert('Nothing to export yet. Bookmark an item with ☆, or add one to your AI stack.');
         return;
     }
 
@@ -114,7 +114,8 @@ function exportBookmarks() {
         version: BOOKMARK_EXPORT_VERSION,
         exportedAt: new Date().toISOString(),
         count,
-        bookmarks
+        bookmarks,
+        aiStack
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -132,26 +133,38 @@ function exportBookmarks() {
 // hand-edited or older file still restores.
 function parseBookmarkFile(text) {
     const parsed = JSON.parse(text);
-    const incoming = parsed && parsed.bookmarks ? parsed.bookmarks : parsed;
 
-    if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
-        throw new Error('This file does not look like a bookmarks export.');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('This file does not look like an export from this app.');
     }
 
     // Keep only entries that actually describe an item, so a malformed file
-    // cannot poison the bookmark store with junk that breaks rendering.
-    const valid = {};
-    Object.entries(incoming).forEach(([key, item]) => {
-        if (item && typeof item === 'object' && item.id !== undefined && item.name) {
-            valid[key] = item;
+    // cannot poison the stores with junk that breaks rendering.
+    const clean = (source) => {
+        const valid = {};
+        if (source && typeof source === 'object' && !Array.isArray(source)) {
+            Object.entries(source).forEach(([key, item]) => {
+                if (item && typeof item === 'object' && item.id !== undefined && item.name) {
+                    valid[key] = item;
+                }
+            });
         }
-    });
+        return valid;
+    };
 
-    if (Object.keys(valid).length === 0) {
-        throw new Error('No valid bookmarks found in that file.');
+    // A v1 file is a bare bookmarks object with no wrapper; a v2 file wraps
+    // bookmarks and the AI stack together. Both must still restore.
+    const wrapped = parsed.bookmarks !== undefined || parsed.aiStack !== undefined;
+    const result = {
+        bookmarks: clean(wrapped ? parsed.bookmarks : parsed),
+        aiStack: clean(parsed.aiStack)
+    };
+
+    if (Object.keys(result.bookmarks).length === 0 && Object.keys(result.aiStack).length === 0) {
+        throw new Error('No valid bookmarks or AI stack entries found in that file.');
     }
 
-    return valid;
+    return result;
 }
 
 async function importBookmarks(file) {
@@ -161,15 +174,24 @@ async function importBookmarks(file) {
         const before = Object.keys(bookmarks).length;
         // Merge rather than replace - importing on a device that already has
         // bookmarks should never silently delete them.
-        bookmarks = { ...bookmarks, ...incoming };
+        bookmarks = { ...bookmarks, ...incoming.bookmarks };
         localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+
+        let stackAdded = 0;
+        if (incoming.aiStack) {
+            const stackBefore = Object.keys(aiStack).length;
+            aiStack = { ...aiStack, ...incoming.aiStack };
+            saveAiStack();
+            stackAdded = Object.keys(aiStack).length - stackBefore;
+        }
 
         const added = Object.keys(bookmarks).length - before;
         updateBookmarkCount();
         renderItems(filteredItems);
 
-        alert(`Imported ${Object.keys(incoming).length} bookmark(s): ${added} new, ` +
-              `${Object.keys(incoming).length - added} already saved.`);
+        const parts = [`${added} new bookmark(s)`];
+        if (stackAdded) parts.push(`${stackAdded} new AI stack entr(ies)`);
+        alert(`Import complete: ${parts.join(', ')}.`);
     } catch (error) {
         alert(`Import failed: ${error.message}`);
     }
@@ -212,6 +234,385 @@ async function fetchJson(url, source) {
     }
 
     return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - detection
+//
+// Decides whether a repository is something you would plug into an AI setup,
+// and if so which kind. Scoring rather than a flat keyword match, because a
+// repo merely *mentioning* an LLM is not an agent framework: topics are
+// curated by the repo owner and are the strongest signal, the name is next,
+// and a description mention alone is weak unless the phrase is unambiguous
+// (nobody writes "Model Context Protocol" by accident).
+//
+// Anything scoring below AI_MATCH_THRESHOLD gets no badge and no button - a
+// false positive here is worse than a miss, because it puts an install prompt
+// on a repo that cannot be installed.
+
+const AI_MATCH_THRESHOLD = 3;
+
+const AI_TYPES = {
+    mcp: {
+        label: 'MCP Server',
+        icon: '🔌',
+        topics: ['mcp', 'mcp-server', 'mcp-servers', 'model-context-protocol', 'modelcontextprotocol'],
+        namePatterns: [/(^|[-_])mcp([-_]|$)/i],
+        strongPhrases: [/model context protocol/i, /\bmcp server\b/i]
+    },
+    skill: {
+        label: 'Agent Skill',
+        icon: '🧩',
+        topics: ['claude-skill', 'claude-skills', 'agent-skill', 'agent-skills', 'ai-skill', 'ai-skills'],
+        namePatterns: [/(^|[-_])skills?([-_]|$)/i],
+        strongPhrases: [/\bclaude skill/i, /\bagent skill/i]
+    },
+    agent: {
+        label: 'AI Agent',
+        icon: '🤖',
+        topics: ['ai-agent', 'ai-agents', 'llm-agent', 'llm-agents', 'autonomous-agents',
+                 'agentic', 'agentic-ai', 'agent-framework', 'multi-agent'],
+        namePatterns: [/(^|[-_])agents?([-_]|$)/i],
+        strongPhrases: [/\bai agents?\b/i, /\bautonomous agents?\b/i, /\bagentic\b/i]
+    },
+    llmtool: {
+        label: 'LLM Tooling',
+        icon: '🧠',
+        topics: ['llm', 'llms', 'llmops', 'genai', 'generative-ai', 'rag', 'retrieval-augmented-generation',
+                 'prompt-engineering', 'embeddings', 'vector-database', 'vector-search',
+                 'openai', 'anthropic', 'claude', 'langchain', 'llama', 'transformers'],
+        namePatterns: [/(^|[-_])(llm|gpt|rag|prompt)([-_]|$)/i],
+        strongPhrases: [/\blarge language models?\b/i, /\bretrieval[- ]augmented\b/i]
+    }
+};
+
+// Weights: a curated topic outranks a name hit, which outranks prose.
+const AI_SCORE_TOPIC = 3;
+const AI_SCORE_NAME = 2;
+const AI_SCORE_PHRASE = 3;
+
+function scoreAiType(item, config) {
+    let score = 0;
+
+    const topics = (item.topics || []).map(t => String(t).toLowerCase());
+    if (config.topics.some(t => topics.includes(t))) score += AI_SCORE_TOPIC;
+
+    const name = String(item.name || '');
+    if (config.namePatterns.some(re => re.test(name))) score += AI_SCORE_NAME;
+
+    const text = `${item.description || ''} ${name}`;
+    if (config.strongPhrases.some(re => re.test(text))) score += AI_SCORE_PHRASE;
+
+    return score;
+}
+
+// Returns { type, label, icon, score } or null when the repo is not AI-related.
+function detectAiType(item) {
+    if (!item) return null;
+    // HuggingFace models are already AI by definition, but they are not
+    // something you "install into" an AI tool, so they stay out of this.
+    if (item.platform !== 'github') return null;
+
+    let best = null;
+    Object.entries(AI_TYPES).forEach(([type, config]) => {
+        const score = scoreAiType(item, config);
+        if (score >= AI_MATCH_THRESHOLD && (!best || score > best.score)) {
+            best = { type, label: config.label, icon: config.icon, score };
+        }
+    });
+
+    return best;
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - install recipes
+//
+// Ground rule, and the reason this file has an `exact` flag: a command that is
+// derived purely from the repo URL (a clone, a skill drop into ~/.claude/skills)
+// is always correct and is shown plainly. A command that has to guess something
+// the repo alone does not tell us - the published package name, the server's
+// start command - is marked and paired with a link to the README. Printing a
+// confident install line that silently does not work would be the same mistake
+// as the fabricated leaderboard this app used to ship.
+
+function repoSlug(item) {
+    return String(item.name || 'tool').toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+}
+
+function repoCloneUrl(item) {
+    const url = safeUrl(item.url);
+    return url ? `${url}.git` : '';
+}
+
+function packageManagerStep(item) {
+    const lang = String(item.language || '').toLowerCase();
+    const slug = repoSlug(item);
+
+    if (lang === 'python') {
+        return { label: 'Install the package', code: `pip install ${slug}`, exact: false,
+                 note: 'Assumes the PyPI name matches the repo name - check the README.' };
+    }
+    if (['javascript', 'typescript'].includes(lang)) {
+        return { label: 'Install the package', code: `npm install ${slug}`, exact: false,
+                 note: 'Assumes the npm name matches the repo name - check the README.' };
+    }
+    return null;
+}
+
+function cloneStep(item) {
+    return { label: 'Clone it', code: `git clone ${repoCloneUrl(item)}`, exact: true };
+}
+
+// Returns { tabs: [{ id, label, steps: [...] }] }
+function buildInstallRecipe(item, ai) {
+    const slug = repoSlug(item);
+    const clone = cloneStep(item);
+    const pkg = packageManagerStep(item);
+
+    if (ai.type === 'mcp') {
+        return { tabs: [
+            { id: 'claude', label: 'Claude Code', steps: [
+                clone,
+                { label: 'Register the server', code: `claude mcp add ${slug} -- <start command from the README>`,
+                  exact: false,
+                  note: 'Every MCP server starts differently (npx, uvx, node, python). Copy the exact run command out of the README and drop it in place of the placeholder.' }
+            ]},
+            { id: 'cursor', label: 'Cursor / VS Code', steps: [
+                clone,
+                { label: 'Add to your MCP config', exact: false,
+                  code: `{\n  "mcpServers": {\n    "${slug}": {\n      "command": "<command from the README>",\n      "args": []\n    }\n  }\n}`,
+                  note: 'Goes in .cursor/mcp.json (Cursor) or your editor\'s MCP settings. Fill in the command from the README.' }
+            ]},
+            { id: 'generic', label: 'Anything else', steps: [
+                clone,
+                { label: 'Follow the setup docs', code: `open ${safeUrl(item.url)}#readme`, exact: true,
+                  note: 'MCP works the same everywhere: run the server, point your client at it.' }
+            ]}
+        ]};
+    }
+
+    if (ai.type === 'skill') {
+        return { tabs: [
+            { id: 'claude', label: 'Claude Code', steps: [
+                { label: 'Drop it into your skills folder',
+                  code: `git clone ${repoCloneUrl(item)} ~/.claude/skills/${slug}`, exact: true,
+                  note: 'Skills are just folders. Restart Claude Code and it will be picked up.' }
+            ]},
+            { id: 'cursor', label: 'Cursor / VS Code', steps: [
+                clone,
+                { label: 'Adapt the instructions', code: `open ${safeUrl(item.url)}#readme`, exact: true,
+                  note: 'Skills are a Claude convention. In other tools, paste the skill\'s instructions into your rules or system prompt.' }
+            ]},
+            { id: 'generic', label: 'Anything else', steps: [clone] }
+        ]};
+    }
+
+    // Agent frameworks and general LLM tooling install like normal libraries.
+    const libSteps = pkg ? [pkg, clone] : [clone];
+    return { tabs: [
+        { id: 'claude', label: 'Claude Code', steps: libSteps.concat([
+            { label: 'Point Claude at it', code: `claude "read the README in ./${slug} and set it up for me"`,
+              exact: false, note: 'Once it is on disk, let the agent do the wiring.' }
+        ])},
+        { id: 'cursor', label: 'Cursor / VS Code', steps: libSteps },
+        { id: 'generic', label: 'Anything else', steps: [clone,
+            { label: 'Read the setup docs', code: `open ${safeUrl(item.url)}#readme`, exact: true }]}
+    ]};
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - the stack
+
+let aiStack = JSON.parse(localStorage.getItem('aiStack') || '{}');
+
+function aiStackKey(item) {
+    return `${item.platform}_${item.id}`;
+}
+
+function inAiStack(item) {
+    return aiStack[aiStackKey(item)] !== undefined;
+}
+
+function saveAiStack() {
+    localStorage.setItem('aiStack', JSON.stringify(aiStack));
+    updateAiStackCount();
+}
+
+function addToAiStack(item, ai) {
+    const key = aiStackKey(item);
+    if (aiStack[key]) return false;
+    aiStack[key] = { ...item, aiType: ai.type, aiLabel: ai.label, status: 'want-to-try', addedAt: Date.now() };
+    saveAiStack();
+    return true;
+}
+
+function removeFromAiStack(item) {
+    delete aiStack[aiStackKey(item)];
+    saveAiStack();
+}
+
+function setAiStackStatus(item, status) {
+    const entry = aiStack[aiStackKey(item)];
+    if (entry) {
+        entry.status = status;
+        saveAiStack();
+    }
+}
+
+function updateAiStackCount() {
+    const el = document.getElementById('aiStackCount');
+    if (el) el.textContent = Object.keys(aiStack).length;
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - modal
+
+let modalItem = null;
+let modalAi = null;
+let modalTab = 'claude';
+
+function renderInstallSteps(steps) {
+    return steps.map((step, i) => `
+        <div class="install-step">
+            <div class="install-step-head">
+                <span class="install-step-num">${i + 1}</span>
+                <span class="install-step-label">${escapeHtml(step.label)}</span>
+                ${step.exact ? '' : '<span class="install-flag" title="This line contains a guess - confirm it against the repo README">needs a look</span>'}
+            </div>
+            <pre class="install-code"><code>${escapeHtml(step.code)}</code></pre>
+            <button class="copy-btn" data-copy="${escapeHtml(step.code)}">Copy</button>
+            ${step.note ? `<p class="install-note">${escapeHtml(step.note)}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+function renderAiModal() {
+    const overlay = document.getElementById('aiModal');
+    if (!modalItem || !modalAi) {
+        overlay.classList.remove('open');
+        overlay.innerHTML = '';
+        return;
+    }
+
+    const recipe = buildInstallRecipe(modalItem, modalAi);
+    const tab = recipe.tabs.find(t => t.id === modalTab) || recipe.tabs[0];
+    const inStack = inAiStack(modalItem);
+    const entry = aiStack[aiStackKey(modalItem)];
+
+    overlay.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add to my AI">
+            <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+
+            <div class="modal-head">
+                <span class="ai-badge ${escapeHtml(modalAi.type)}">${modalAi.icon} ${escapeHtml(modalAi.label)}</span>
+                <h2>${escapeHtml(modalItem.name)}</h2>
+                <div class="modal-author">by ${escapeHtml(modalItem.author)}</div>
+                <p class="modal-desc">${escapeHtml(modalItem.description) || 'No description available'}</p>
+            </div>
+
+            <div class="modal-stack-row">
+                ${inStack
+                    ? `<span class="stack-state">In your AI stack — ${escapeHtml(entry.status === 'installed' ? 'installed' : 'want to try')}</span>
+                       <button class="toolbar-button" id="modalToggleStatus">${entry.status === 'installed' ? '↩ Mark as want to try' : '✓ Mark as installed'}</button>
+                       <button class="toolbar-button" id="modalRemove">Remove</button>`
+                    : `<button class="toolbar-button primary" id="modalAdd">+ Add to my AI</button>`}
+            </div>
+
+            <div class="modal-tabs">
+                ${recipe.tabs.map(t => `
+                    <button class="modal-tab ${t.id === tab.id ? 'active' : ''}" data-tab="${escapeHtml(t.id)}">
+                        ${escapeHtml(t.label)}
+                    </button>
+                `).join('')}
+            </div>
+
+            <div class="modal-body">
+                ${renderInstallSteps(tab.steps)}
+            </div>
+
+            <p class="modal-footnote">
+                Commands marked <em>needs a look</em> contain something this app had to guess —
+                a package name or a start command. Confirm them against the
+                <a href="${escapeHtml(safeUrl(modalItem.url))}#readme" target="_blank" rel="noopener noreferrer">repo README</a>.
+            </p>
+        </div>
+    `;
+    overlay.classList.add('open');
+    wireAiModal();
+}
+
+function openAiModal(item, ai) {
+    modalItem = item;
+    modalAi = ai;
+    modalTab = 'claude';
+    renderAiModal();
+}
+
+function closeAiModal() {
+    modalItem = null;
+    modalAi = null;
+    renderAiModal();
+}
+
+function wireAiModal() {
+    const overlay = document.getElementById('aiModal');
+
+    document.getElementById('modalClose').addEventListener('click', closeAiModal);
+
+    overlay.querySelectorAll('.modal-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            modalTab = btn.dataset.tab;
+            renderAiModal();
+        });
+    });
+
+    overlay.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const text = btn.dataset.copy;
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.textContent = 'Copied';
+            } catch (error) {
+                // Clipboard access can be denied (insecure context, permissions).
+                // Select the text instead so the user can copy it by hand.
+                const code = btn.previousElementSibling;
+                const range = document.createRange();
+                range.selectNodeContents(code);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                btn.textContent = 'Select + copy';
+            }
+            setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+        });
+    });
+
+    const addBtn = document.getElementById('modalAdd');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            addToAiStack(modalItem, modalAi);
+            renderAiModal();
+            renderItems(filteredItems);
+        });
+    }
+
+    const toggleBtn = document.getElementById('modalToggleStatus');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const entry = aiStack[aiStackKey(modalItem)];
+            setAiStackStatus(modalItem, entry.status === 'installed' ? 'want-to-try' : 'installed');
+            renderAiModal();
+        });
+    }
+
+    const removeBtn = document.getElementById('modalRemove');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            removeFromAiStack(modalItem);
+            renderAiModal();
+            renderItems(filteredItems);
+        });
+    }
 }
 
 // API Functions - GitHub
@@ -545,6 +946,18 @@ function renderItems(items) {
         });
     });
 
+    // "Add to my AI" buttons - stopPropagation so the card does not also
+    // open the repo in a new tab underneath the modal.
+    container.querySelectorAll('.add-to-ai-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = items.find(i => String(i.id) === btn.dataset.aiId);
+            if (!item) return;
+            const ai = detectAiType(item);
+            if (ai) openAiModal(item, ai);
+        });
+    });
+
     // Add bookmark click handlers
     container.querySelectorAll('.bookmark-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -565,6 +978,8 @@ function renderItems(items) {
 function renderCard(item, index) {
     const bookmarked = isBookmarked(item.id, item.platform);
     const url = safeUrl(item.url);
+    const ai = detectAiType(item);
+    const inStack = ai && inAiStack(item);
 
     return `
         <div class="repo-card" data-url="${escapeHtml(url)}">
@@ -574,6 +989,7 @@ function renderCard(item, index) {
             <div class="repo-rank">${index + 1}</div>
 
             <div class="platform-badge ${escapeHtml(item.platform)}">${escapeHtml(item.platform)}</div>
+            ${ai ? `<div class="ai-badge ${escapeHtml(ai.type)}">${ai.icon} ${escapeHtml(ai.label)}</div>` : ''}
 
             <h3 class="repo-name">${escapeHtml(item.name)}</h3>
             <div class="repo-author">by ${escapeHtml(item.author)}</div>
@@ -638,6 +1054,12 @@ function renderCard(item, index) {
                     </div>
                 ` : ''}
             </div>
+
+            ${ai ? `
+                <button class="add-to-ai-btn ${inStack ? 'added' : ''}" data-ai-id="${escapeHtml(item.id)}">
+                    ${inStack ? '✓ In your AI stack' : '+ Add to my AI'}
+                </button>
+            ` : ''}
         </div>
     `;
 }
@@ -847,6 +1269,36 @@ function setupEventListeners() {
         applyFiltersAndSort();
     });
 
+    // My AI Stack view
+    document.getElementById('aiStackBtn').addEventListener('click', () => {
+        const entries = Object.values(aiStack);
+        if (entries.length === 0) {
+            alert('Your AI stack is empty. Look for the "+ Add to my AI" button on agent, skill and MCP repos.');
+            return;
+        }
+
+        searchMode = null;
+        document.getElementById('searchInput').value = '';
+        renderSearchScopeBanner();
+
+        // Newest first - the thing you just added is the thing you want to see.
+        const sorted = entries.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+        allItems = sorted;
+        filteredItems = sorted;
+        populateLanguageFilter();
+        applyFiltersAndSort({ skipTextFilter: true });
+    });
+
+    // Modal dismissal
+    document.getElementById('aiModal').addEventListener('click', (e) => {
+        // Only a click on the backdrop itself closes it, not one inside the card.
+        if (e.target.id === 'aiModal') closeAiModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAiModal();
+    });
+
     // Bookmark backup
     document.getElementById('exportBtn').addEventListener('click', exportBookmarks);
 
@@ -878,6 +1330,7 @@ async function init() {
     document.getElementById('dateTo').value = getDefaultDateTo();
 
     updateBookmarkCount();
+    updateAiStackCount();
     setupEventListeners();
 
     // Load GitHub by default

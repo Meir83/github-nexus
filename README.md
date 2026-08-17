@@ -26,14 +26,50 @@ AI Discovery Hub V2 expands beyond GitHub to become a comprehensive discovery pl
 - **Flexible Time Windows** - Daily, weekly, monthly, or custom periods
 - Per-date-range caching for performance
 
+### 🤖 Add to my AI
+
+The feature this app exists for. While browsing GitHub, repositories that are
+actually *installable into an AI setup* are detected and badged:
+
+| Badge | What it means |
+|---|---|
+| 🔌 MCP Server | A Model Context Protocol server you can register with a client |
+| 🧩 Agent Skill | A skill folder you can drop into `~/.claude/skills/` |
+| 🤖 AI Agent | An agent framework or autonomous-agent toolkit |
+| 🧠 LLM Tooling | RAG, embeddings, prompt and vector tooling |
+
+Detection is **scored, not keyword-matched**: repository topics (curated by the
+owner) outweigh the repo name, which outweighs a passing mention in the
+description. A repo has to clear a threshold before it earns a badge, because a
+false positive puts an install prompt on something that cannot be installed —
+`redis` and a travel-booking app named `travel-agent-booking` are both correctly
+left alone, and there are tests that keep it that way.
+
+Clicking **+ Add to my AI** does two things:
+
+1. **Saves it to your AI stack** — a list separate from bookmarks, with a
+   want-to-try / installed status, persisted in `localStorage` and included in
+   the same export file as your bookmarks.
+2. **Shows the install commands** for Claude Code, Cursor / VS Code, or any
+   other setup — with a copy button per step.
+
+**On honesty in the install panel:** commands derived purely from the repository
+URL (a `git clone`, a skill dropped into `~/.claude/skills/`) are exact and shown
+plainly. Anything that requires a guess — a published package name, an MCP
+server's start command — is tagged **needs a look** and paired with a link to the
+repo's README. This app used to ship fabricated leaderboard data; printing a
+confident install line that silently fails would be the same mistake in a new
+place.
+
 ### ⭐ Bookmarks & Favorites (V2)
 - **One-Click Bookmarking** - Save items across all platforms
 - **Persistent Storage** - Bookmarks saved in localStorage
 - **Quick Access** - View all bookmarks with one click
 - **Cross-Platform** - Bookmark GitHub repos and HuggingFace models
-- **Export / Import** - Download your bookmarks as JSON and restore them on
-  another browser or after clearing your cache. Importing merges rather than
-  replaces, so restoring never deletes bookmarks you already have.
+- **Export / Import** - Download your bookmarks *and your AI stack* as one JSON
+  file and restore them on another browser or after clearing your cache.
+  Importing merges rather than replaces, so restoring never deletes entries you
+  already have. Older export files that contain only bookmarks still restore.
 
 ### 👁️ Multiple View Modes (V2)
 - **Grid View** - Classic card layout with full details
@@ -132,7 +168,7 @@ Or simply drag and drop `index.html` into your browser.
 Click the platform tabs at the top to switch between:
 - **GitHub** - Trending repositories
 - **HuggingFace** - AI models and datasets
-- **LLM Arena** - Chatbot leaderboard
+- **LLM Arena** - links to the live leaderboard
 
 ### Date Range Selection (GitHub)
 Use the date pickers to browse repositories from specific time periods:
@@ -144,6 +180,13 @@ Use the date pickers to browse repositories from specific time periods:
 1. Click the ☆ icon on any card to bookmark it
 2. Click the "Bookmarks" button to view all saved items
 3. Bookmarks persist across browser sessions
+4. Use "Export" for a JSON backup and "Import" to restore it
+
+### Adding to your AI
+1. Look for the coloured badge (🔌 MCP Server, 🧩 Agent Skill, 🤖 AI Agent, 🧠 LLM Tooling)
+2. Click **+ Add to my AI** on that card
+3. Pick your tool tab — Claude Code, Cursor / VS Code, or anything else — and copy the steps
+4. Mark it **installed** once it is set up; "My AI Stack" in the toolbar shows everything you've added
 
 ### View Modes
 Switch between three viewing layouts:
@@ -222,7 +265,8 @@ node tests/smoke.js
 ```
 
 They cover HTML escaping of API-supplied text, platform-wide search, rate-limit
-messaging, tab navigation, and the bookmark export/import round-trip.
+messaging, tab navigation, the bookmark export/import round-trip, and the
+"Add to my AI" detector — including the decoy repos that must *not* be flagged.
 
 CI runs the same suite on every push and pull request, and the GitHub Pages deploy
 job will not run unless the tests pass.
@@ -235,6 +279,7 @@ Potential features for future versions:
 - ✅ ~~Multi-platform support~~ (Implemented in V2)
 - ✅ ~~Search across the whole platform, not just loaded results~~ (Implemented)
 - ✅ ~~Export bookmarks to JSON~~ (Implemented, with import)
+- ✅ ~~"Add to my AI" for MCP servers, skills and agent frameworks~~ (Implemented)
 - Side-by-side comparison view
 - User authentication with GitHub/HuggingFace OAuth
 - Dark/light theme toggle
