@@ -5,6 +5,49 @@ All notable changes to AI Discovery Hub (formerly GitHub Nexus) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-08-17
+
+### Added
+
+- **Risk signals on repositories.** Prompted by a real incident: a user browsing
+  this app found a skill, asked an agent to install it, and it turned out to be a
+  typosquatted re-upload that disabled TLS verification and exfiltrated
+  cryptocurrency wallet data. v2.3.0 put an install button next to arbitrary
+  GitHub repos with no risk information at all; this closes that gap.
+  - **On every GitHub card**, from data the listing already returns: repository
+    age and star count, shown as a warning chip. No extra API calls.
+  - **In the install panel**, when it actually matters: a name-collision check
+    that finds an older, far more popular repository with the same name (the
+    defining fingerprint of a typosquat) and links to it, plus a root file
+    listing that flags committed executables, installers, archives and Python
+    bytecode, plus any `SECURITY-NOTICE.md` in the repo. Cached for an hour.
+  - **Serious signals hide the install commands** behind an explicit
+    "Show install steps anyway" click. Not a block - it is the user's machine -
+    but the copy button should not be the first thing within reach.
+  - A standing reminder that installing a skill, MCP server or agent means
+    running someone else's code, shown regardless of what the checks find.
+
+### Notes on what this deliberately does not do
+
+- **It never declares a repository safe.** With no signals the panel reports
+  "No automated signals found - that is not a safety verdict" and explains what
+  the checks cannot see. A static page cannot read a repo's code, spot
+  obfuscation, or know what a remote endpoint does with your data. A green
+  "safe" badge would be worse than no check at all: it would launder precisely
+  the repository trying to do harm.
+- **Degradation is explicit.** If the checks are rate-limited or fail, the panel
+  says they did not complete and marks itself incomplete, rather than showing an
+  empty list that reads as all-clear.
+
+### Tests
+
+- 18 further checks (74 total), built on a fixture modelled directly on the real
+  attack: a four-day-old, three-star re-upload sharing its name with an older
+  4.2k-star project and shipping a committed `.zip` and `__pycache__`. Assertions
+  cover every signal firing, the established repo staying unflagged, the steps
+  being gated, the wording never claiming safety, and honest degradation under
+  rate limiting.
+
 ## [2.3.0] - 2026-08-17
 
 ### Added

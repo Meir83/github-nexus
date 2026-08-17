@@ -61,6 +61,38 @@ repo's README. This app used to ship fabricated leaderboard data; printing a
 confident install line that silently fails would be the same mistake in a new
 place.
 
+### ⚠️ Risk signals
+
+Because "Add to my AI" puts an install button next to arbitrary GitHub repos, it
+carries risk information. Every GitHub card is checked, and the install panel
+runs deeper checks before showing you any command.
+
+**What is checked**
+
+| Signal | Why it matters |
+|---|---|
+| Repository age | A days-old repo has had no time to be reviewed by anyone |
+| Star count | Few people have publicly vouched for it |
+| **Name collision** | An older, far more popular repo with the *same name* is the core fingerprint of a typosquat re-upload |
+| **Committed binaries** | `.exe`, `.zip`, `.pyc`, `__pycache__`, installers — source projects rarely commit these; droppers usually do |
+| Security notices | A `SECURITY-NOTICE.md` in the repo is surfaced immediately |
+
+When serious signals fire, the install commands are **hidden behind a deliberate
+click** — not blocked, it's your machine, but the copy button shouldn't be the
+first thing your hand reaches.
+
+**What this is not.** It is not a malware scanner, and it will never tell you a
+repository is safe. A static page cannot read a repo's code, cannot spot
+obfuscation, and cannot know what an external endpoint does with your data. When
+nothing fires, the panel says *"No automated signals found — that is not a safety
+verdict"*, and if the checks are rate-limited it says they did not complete
+rather than implying all-clear. A green "safe" badge would be worse than no check
+at all, because it would launder exactly the repo trying to hurt you.
+
+Installing a skill, MCP server or agent means running someone else's code with
+your permissions. Read the source, and prefer the original project over a
+re-upload.
+
 ### ⭐ Bookmarks & Favorites (V2)
 - **One-Click Bookmarking** - Save items across all platforms
 - **Persistent Storage** - Bookmarks saved in localStorage
@@ -186,7 +218,8 @@ Use the date pickers to browse repositories from specific time periods:
 1. Look for the coloured badge (🔌 MCP Server, 🧩 Agent Skill, 🤖 AI Agent, 🧠 LLM Tooling)
 2. Click **+ Add to my AI** on that card
 3. Pick your tool tab — Claude Code, Cursor / VS Code, or anything else — and copy the steps
-4. Mark it **installed** once it is set up; "My AI Stack" in the toolbar shows everything you've added
+4. **Read the risk panel** before copying anything — it runs when the panel opens
+5. Mark it **installed** once it is set up; "My AI Stack" in the toolbar shows everything you've added
 
 ### View Modes
 Switch between three viewing layouts:
@@ -265,8 +298,9 @@ node tests/smoke.js
 ```
 
 They cover HTML escaping of API-supplied text, platform-wide search, rate-limit
-messaging, tab navigation, the bookmark export/import round-trip, and the
-"Add to my AI" detector — including the decoy repos that must *not* be flagged.
+messaging, tab navigation, the bookmark export/import round-trip, the
+"Add to my AI" detector — including the decoy repos that must *not* be flagged —
+and the risk signals, using a fixture modelled on a real typosquat attack.
 
 CI runs the same suite on every push and pull request, and the GitHub Pages deploy
 job will not run unless the tests pass.
@@ -280,6 +314,7 @@ Potential features for future versions:
 - ✅ ~~Search across the whole platform, not just loaded results~~ (Implemented)
 - ✅ ~~Export bookmarks to JSON~~ (Implemented, with import)
 - ✅ ~~"Add to my AI" for MCP servers, skills and agent frameworks~~ (Implemented)
+- ✅ ~~Risk signals on repositories before install~~ (Implemented)
 - Side-by-side comparison view
 - User authentication with GitHub/HuggingFace OAuth
 - Dark/light theme toggle

@@ -325,6 +325,163 @@ function detectAiType(item) {
 }
 
 // ---------------------------------------------------------------------------
+// Repository risk signals
+//
+// Context: this app puts an install button next to arbitrary GitHub repos, and
+// a typosquatted re-upload of a popular skill nearly got installed on a real
+// machine. So the button needs to carry risk information.
+//
+// What this is NOT: a malware scanner. A static page cannot read a repo's code,
+// cannot spot obfuscation, and cannot know what an external endpoint does with
+// your data. It therefore NEVER declares a repo safe - the absence of signals
+// is reported as "nothing automated found", not as a clean bill of health.
+// A false reassurance here is worse than no check at all, because it would
+// launder exactly the repo that is trying to hurt you.
+//
+// What it IS: detection of the structural fingerprints of the supply-chain
+// re-upload pattern, all of which the malicious repo had - days old, almost no
+// stars, sharing a name with a far older and more popular project, and carrying
+// committed binaries and archives that source repos have no reason to ship.
+
+const RISK_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+const RISK_NEW_REPO_DAYS = 30;
+const RISK_LOW_STARS = 50;
+
+// Extensions that a source repository rarely has a legitimate reason to commit,
+// and which are the usual delivery vehicle for a dropper.
+const RISK_FILE_PATTERNS = [
+    { re: /\.(exe|msi|scr|bat|cmd|com)$/i, label: 'Windows executable' },
+    { re: /\.(dmg|pkg|app)$/i, label: 'macOS installer' },
+    { re: /\.(zip|7z|rar|tar\.gz|tgz)$/i, label: 'archive' },
+    { re: /\.(pyc|pyd)$/i, label: 'compiled Python bytecode' },
+    { re: /\.(dll|so|dylib)$/i, label: 'binary library' },
+    { re: /\.(jar|bin)$/i, label: 'binary' }
+];
+
+function daysSince(dateString) {
+    const then = new Date(dateString).getTime();
+    if (!Number.isFinite(then)) return null;
+    return Math.floor((Date.now() - then) / 86400000);
+}
+
+// Tier 1: costs nothing. Runs on every card from data the listing already has.
+function assessBasicRisk(item) {
+    const signals = [];
+    if (item.platform !== 'github') return signals;
+
+    const age = daysSince(item.created_at);
+    const stars = Number(item.stars) || 0;
+    const isNew = age !== null && age <= RISK_NEW_REPO_DAYS;
+    const isUnproven = stars < RISK_LOW_STARS;
+
+    if (isNew && isUnproven) {
+        signals.push({
+            severity: 'high',
+            title: `Created ${age} day(s) ago with ${stars} star(s)`,
+            detail: 'New and unproven is the normal shape of a malicious re-upload. It is also the normal shape of a genuine new project - so this is a reason to read the code, not a verdict.'
+        });
+    } else if (isNew) {
+        signals.push({
+            severity: 'medium',
+            title: `Created ${age} day(s) ago`,
+            detail: 'Recently created repositories have had little time to be reviewed by anyone.'
+        });
+    } else if (isUnproven) {
+        signals.push({
+            severity: 'medium',
+            title: `Only ${stars} star(s)`,
+            detail: 'Few people have publicly vouched for this repository.'
+        });
+    }
+
+    return signals;
+}
+
+function highestSeverity(signals) {
+    if (signals.some(s => s.severity === 'high')) return 'high';
+    if (signals.some(s => s.severity === 'medium')) return 'medium';
+    return signals.length ? 'info' : null;
+}
+
+// Tier 2: costs API calls, so it runs only when the user opens the install
+// panel - the moment the answer actually matters.
+async function runDeepRiskCheck(item) {
+    const cacheKey = `risk_${item.platform}_${item.id}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        const parsed = JSON.parse(cached);
+        if (isCacheValid(parsed, RISK_CACHE_DURATION)) return parsed.result;
+    }
+
+    const owner = item.author;
+    const name = item.name;
+    const signals = [];
+    let degraded = null;
+
+    try {
+        // 1. Name collision. This is the signal that catches a typosquat: an
+        //    older, far more popular repository with the very same name.
+        const dupUrl = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(`${name} in:name`)}&sort=stars&order=desc&per_page=5`;
+        const dupes = await fetchJson(dupUrl, 'GitHub');
+        const rival = (dupes.items || []).find(r =>
+            r.name.toLowerCase() === String(name).toLowerCase() &&
+            r.owner.login.toLowerCase() !== String(owner).toLowerCase() &&
+            r.stargazers_count > Math.max(20, (Number(item.stars) || 0) * 10) &&
+            new Date(r.created_at) < new Date(item.created_at)
+        );
+
+        if (rival) {
+            signals.push({
+                severity: 'high',
+                title: `Another repo shares this name and is far more established`,
+                detail: `${rival.owner.login}/${rival.name} has ${formatNumber(rival.stargazers_count)} stars and is older. Re-uploading a popular project under a new owner is the core of a typosquat attack. Check which one you actually meant.`,
+                link: rival.html_url,
+                linkLabel: `Open ${rival.owner.login}/${rival.name}`
+            });
+        }
+
+        // 2. Root file listing. Committed binaries and archives in a source
+        //    repository are the usual way a payload gets delivered.
+        const contents = await fetchJson(`${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/contents/`, 'GitHub');
+        const flagged = [];
+        (Array.isArray(contents) ? contents : []).forEach(entry => {
+            const match = RISK_FILE_PATTERNS.find(p => p.re.test(entry.name));
+            if (match) flagged.push(`${entry.name} (${match.label})`);
+            if (entry.name === '__pycache__') flagged.push('__pycache__ (committed bytecode)');
+        });
+
+        if (flagged.length) {
+            signals.push({
+                severity: 'high',
+                title: 'Executables or archives committed to the repository',
+                detail: `Found: ${flagged.slice(0, 6).join(', ')}. Source projects rarely commit binaries; droppers usually do. Inspect these before running anything.`
+            });
+        }
+
+        // 3. A security notice in the repo is worth surfacing loudly, whichever
+        //    side of the incident this repo is on.
+        const notice = (Array.isArray(contents) ? contents : []).find(e => /^security[-_ ]?notice/i.test(e.name));
+        if (notice) {
+            signals.push({
+                severity: 'high',
+                title: `This repository contains ${notice.name}`,
+                detail: 'Read it before doing anything else - a maintainer published it for a reason.',
+                link: notice.html_url,
+                linkLabel: 'Read the notice'
+            });
+        }
+    } catch (error) {
+        // Rate limited or offline. Say so rather than implying all-clear.
+        degraded = error.message || 'The checks could not be completed.';
+    }
+
+    const result = { signals, degraded, checkedAt: Date.now() };
+    localStorage.setItem(cacheKey, JSON.stringify({ result, timestamp: Date.now() }));
+    return result;
+}
+
+// ---------------------------------------------------------------------------
 // "Add to my AI" - install recipes
 //
 // Ground rule, and the reason this file has an `exact` flag: a command that is
@@ -470,6 +627,9 @@ function updateAiStackCount() {
 let modalItem = null;
 let modalAi = null;
 let modalTab = 'claude';
+let modalRisk = null;        // { signals, degraded } once the deep check returns
+let modalRiskLoading = false;
+let modalStepsRevealed = false;
 
 function renderInstallSteps(steps) {
     return steps.map((step, i) => `
@@ -486,6 +646,55 @@ function renderInstallSteps(steps) {
     `).join('');
 }
 
+function renderRiskSignal(sig) {
+    return `
+        <li class="risk-signal ${escapeHtml(sig.severity)}">
+            <div class="risk-signal-title">${escapeHtml(sig.title)}</div>
+            <div class="risk-signal-detail">${escapeHtml(sig.detail)}</div>
+            ${sig.link ? `<a class="risk-signal-link" href="${escapeHtml(safeUrl(sig.link))}" target="_blank" rel="noopener noreferrer">${escapeHtml(sig.linkLabel || 'Open')} →</a>` : ''}
+        </li>
+    `;
+}
+
+function renderRiskPanel(basicSignals) {
+    const deep = modalRisk ? modalRisk.signals : [];
+    const all = basicSignals.concat(deep);
+    const level = highestSeverity(all);
+
+    const body = modalRiskLoading
+        ? '<div class="risk-loading">Running checks…</div>'
+        : `
+            ${all.length ? `<ul class="risk-list">${all.map(renderRiskSignal).join('')}</ul>` : ''}
+            ${!all.length ? `
+                <p class="risk-none">
+                    No automated signals found. <strong>That is not a safety verdict.</strong>
+                    These checks look at repository age, popularity, name collisions and
+                    committed binaries — they cannot read the code or tell you what it does
+                    once it runs.
+                </p>
+            ` : ''}
+            ${modalRisk && modalRisk.degraded ? `
+                <p class="risk-degraded">⚠ The deeper checks did not complete: ${escapeHtml(modalRisk.degraded)}
+                Treat this panel as incomplete.</p>
+            ` : ''}
+        `;
+
+    return `
+        <div class="risk-panel ${level ? escapeHtml(level) : 'clear'}">
+            <div class="risk-panel-head">
+                <span class="risk-panel-icon">${level === 'high' ? '⛔' : level === 'medium' ? '⚠' : '🔍'}</span>
+                <h3>${level === 'high' ? 'Serious risk signals' : level === 'medium' ? 'Worth a look first' : 'Safety checks'}</h3>
+            </div>
+            ${body}
+            <p class="risk-always">
+                Whatever this panel says, installing a skill, MCP server or agent means
+                running someone else's code with your permissions. Read the source, and
+                prefer the original project over a re-upload.
+            </p>
+        </div>
+    `;
+}
+
 function renderAiModal() {
     const overlay = document.getElementById('aiModal');
     if (!modalItem || !modalAi) {
@@ -498,6 +707,14 @@ function renderAiModal() {
     const tab = recipe.tabs.find(t => t.id === modalTab) || recipe.tabs[0];
     const inStack = inAiStack(modalItem);
     const entry = aiStack[aiStackKey(modalItem)];
+
+    const basicSignals = assessBasicRisk(modalItem);
+    const allSignals = basicSignals.concat(modalRisk ? modalRisk.signals : []);
+    const riskLevel = highestSeverity(allSignals);
+    // Serious signals put the commands behind one deliberate click. Not a
+    // block - you own the machine - but the copy button should not be the
+    // first thing your hand reaches for.
+    const gateSteps = riskLevel === 'high' && !modalStepsRevealed;
 
     overlay.innerHTML = `
         <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add to my AI">
@@ -518,17 +735,26 @@ function renderAiModal() {
                     : `<button class="toolbar-button primary" id="modalAdd">+ Add to my AI</button>`}
             </div>
 
-            <div class="modal-tabs">
-                ${recipe.tabs.map(t => `
-                    <button class="modal-tab ${t.id === tab.id ? 'active' : ''}" data-tab="${escapeHtml(t.id)}">
-                        ${escapeHtml(t.label)}
-                    </button>
-                `).join('')}
-            </div>
+            ${renderRiskPanel(basicSignals)}
 
-            <div class="modal-body">
-                ${renderInstallSteps(tab.steps)}
-            </div>
+            ${gateSteps ? `
+                <div class="steps-gate">
+                    <p>Install steps are hidden because of the signals above.</p>
+                    <button class="toolbar-button" id="revealSteps">Show install steps anyway</button>
+                </div>
+            ` : `
+                <div class="modal-tabs">
+                    ${recipe.tabs.map(t => `
+                        <button class="modal-tab ${t.id === tab.id ? 'active' : ''}" data-tab="${escapeHtml(t.id)}">
+                            ${escapeHtml(t.label)}
+                        </button>
+                    `).join('')}
+                </div>
+
+                <div class="modal-body">
+                    ${renderInstallSteps(tab.steps)}
+                </div>
+            `}
 
             <p class="modal-footnote">
                 Commands marked <em>needs a look</em> contain something this app had to guess —
@@ -541,10 +767,23 @@ function renderAiModal() {
     wireAiModal();
 }
 
-function openAiModal(item, ai) {
+async function openAiModal(item, ai) {
     modalItem = item;
     modalAi = ai;
     modalTab = 'claude';
+    modalRisk = null;
+    modalStepsRevealed = false;
+    modalRiskLoading = true;
+    renderAiModal();
+
+    const result = await runDeepRiskCheck(item);
+
+    // The user may have closed the panel or opened another repo while the
+    // checks were in flight - never paint stale results over a new repo.
+    if (modalItem !== item) return;
+
+    modalRisk = result;
+    modalRiskLoading = false;
     renderAiModal();
 }
 
@@ -586,6 +825,14 @@ function wireAiModal() {
             setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
         });
     });
+
+    const revealBtn = document.getElementById('revealSteps');
+    if (revealBtn) {
+        revealBtn.addEventListener('click', () => {
+            modalStepsRevealed = true;
+            renderAiModal();
+        });
+    }
 
     const addBtn = document.getElementById('modalAdd');
     if (addBtn) {
@@ -980,6 +1227,10 @@ function renderCard(item, index) {
     const url = safeUrl(item.url);
     const ai = detectAiType(item);
     const inStack = ai && inAiStack(item);
+    // Risk signals are shown on every GitHub card, not only AI ones - the
+    // warning is about the repo, not about what you plan to do with it.
+    const riskSignals = assessBasicRisk(item);
+    const riskLevel = highestSeverity(riskSignals);
 
     return `
         <div class="repo-card" data-url="${escapeHtml(url)}">
@@ -990,6 +1241,7 @@ function renderCard(item, index) {
 
             <div class="platform-badge ${escapeHtml(item.platform)}">${escapeHtml(item.platform)}</div>
             ${ai ? `<div class="ai-badge ${escapeHtml(ai.type)}">${ai.icon} ${escapeHtml(ai.label)}</div>` : ''}
+            ${riskLevel ? `<div class="risk-chip ${escapeHtml(riskLevel)}" title="${escapeHtml(riskSignals.map(sig => sig.title).join(' · '))}">⚠ ${riskLevel === 'high' ? 'Check before installing' : 'Unproven'}</div>` : ''}
 
             <h3 class="repo-name">${escapeHtml(item.name)}</h3>
             <div class="repo-author">by ${escapeHtml(item.author)}</div>
@@ -1056,8 +1308,8 @@ function renderCard(item, index) {
             </div>
 
             ${ai ? `
-                <button class="add-to-ai-btn ${inStack ? 'added' : ''}" data-ai-id="${escapeHtml(item.id)}">
-                    ${inStack ? '✓ In your AI stack' : '+ Add to my AI'}
+                <button class="add-to-ai-btn ${inStack ? 'added' : ''} ${riskLevel === 'high' ? 'risky' : ''}" data-ai-id="${escapeHtml(item.id)}">
+                    ${inStack ? '✓ In your AI stack' : (riskLevel === 'high' ? '⚠ Review, then add to my AI' : '+ Add to my AI')}
                 </button>
             ` : ''}
         </div>
