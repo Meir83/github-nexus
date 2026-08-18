@@ -182,10 +182,28 @@ function check(name, cond, extra = '') {
         body: JSON.stringify({ items: isSearch ? [SEARCH_HIT] : browseItems })
       });
     });
-    await page.route('**/huggingface.co/api/**', route => route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify([{ id: 'meta/llama', modelId: 'meta/llama', author: 'meta', likes: 10, downloads: 500, pipeline_tag: 'text-generation', tags: ['nlp'], createdAt: '2026-01-01T00:00:00Z', lastModified: '2026-02-01T00:00:00Z' }])
-    }));
+    // hfReject lists sort values the fake API refuses, so the fallback chain
+    // can be exercised the way the real 400 behaved.
+    let hfReject = [];
+    let hfRateLimited = false;
+    const hfSortsTried = [];
+
+    await page.route('**/huggingface.co/api/**', route => {
+      const url = route.request().url();
+      const sort = (url.match(/[?&]sort=([^&]+)/) || [])[1];
+      if (sort) hfSortsTried.push(decodeURIComponent(sort));
+
+      if (hfRateLimited) {
+        return route.fulfill({ status: 429, contentType: 'application/json',
+          body: JSON.stringify({ error: 'rate limited' }) });
+      }
+      if (sort && hfReject.includes(decodeURIComponent(sort))) {
+        return route.fulfill({ status: 400, contentType: 'application/json',
+          body: JSON.stringify({ error: `Invalid sort: ${sort}` }) });
+      }
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify([{ id: 'meta/llama', modelId: 'meta/llama', author: 'meta', likes: 10, downloads: 500, pipeline_tag: 'text-generation', tags: ['nlp'], createdAt: '2026-01-01T00:00:00Z', lastModified: '2026-02-01T00:00:00Z' }]) });
+    });
 
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -437,6 +455,53 @@ function check(name, cond, extra = '') {
     rateLimitMode = false;
     await page.click('#modalClose');
     await page.waitForTimeout(200);
+
+    console.log('\n[17] HuggingFace sort fallback (the live 400)');
+    riskMode = false; aiMode = false; rateLimitMode = false;
+
+    // Preferred sort works: it should be the one asked for, and the only one.
+    hfReject = []; hfSortsTried.length = 0;
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForSelector('.repo-card', { timeout: 10000 });
+    await page.click('.platform-tab[data-platform="huggingface"]');
+    await page.waitForSelector('.repo-card:has-text("meta/llama")', { timeout: 10000 });
+    check('asks for trendingScore first', hfSortsTried[0] === 'trendingScore', hfSortsTried.join(','));
+    check('stops at the first working sort', hfSortsTried.length === 1, hfSortsTried.join(','));
+
+    // Preferred sort rejected with 400 - exactly the reported bug.
+    hfReject = ['trendingScore']; hfSortsTried.length = 0;
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForSelector('.repo-card', { timeout: 10000 });
+    await page.click('.platform-tab[data-platform="huggingface"]');
+    await page.waitForSelector('.repo-card:has-text("meta/llama")', { timeout: 10000 });
+    check('falls back after a 400 and still renders', hfSortsTried.includes('likes'), hfSortsTried.join(','));
+    check('tab is not blank on the reported bug', await page.locator('.repo-card').count() > 0);
+
+    // Everything rejected: fail loudly, do not show an empty tab.
+    hfReject = ['trendingScore', 'likes', 'downloads']; hfSortsTried.length = 0;
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForSelector('.repo-card', { timeout: 10000 });
+    await page.click('.platform-tab[data-platform="huggingface"]');
+    await page.waitForSelector('.error-message', { timeout: 10000 });
+    const hfErr = await page.locator('.error-message').textContent();
+    check('tries every candidate before giving up', hfSortsTried.length === 3, hfSortsTried.join(','));
+    check('explains that the API changed', /rejected every sort order/i.test(hfErr), hfErr.trim().slice(0, 140));
+
+    // A rate limit must NOT be retried across candidates - that would burn the
+    // remaining quota on requests that were never going to succeed.
+    hfReject = []; hfRateLimited = true; hfSortsTried.length = 0;
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForSelector('.repo-card', { timeout: 10000 });
+    await page.click('.platform-tab[data-platform="huggingface"]');
+    await page.waitForSelector('.error-message', { timeout: 10000 });
+    check('rate limit is not retried across sorts', hfSortsTried.length === 1, hfSortsTried.join(','));
+    check('rate limit message shown, not a sort error',
+      /rate limit/i.test(await page.locator('.error-message').textContent()));
+    hfRateLimited = false;
 
     check('still no page errors at end', errors.length === 0, errors.join('; '));
     await ctx.close();

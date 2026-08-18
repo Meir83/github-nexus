@@ -5,6 +5,34 @@ All notable changes to AI Discovery Hub (formerly GitHub Nexus) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-08-18
+
+### Fixed
+
+- **The HuggingFace tab returned HTTP 400 and rendered nothing.** The listing
+  asked for `sort=trending`, which is not a valid value: the endpoint sorts by
+  properties of `ModelInfo` - `downloads`, `likes`, `lastModified`, `createdAt`,
+  `trendingScore` - and there is no `trending` field. The search path was
+  unaffected because it already used `sort=downloads`, which is why only
+  browsing broke.
+
+  Rather than swap one hardcoded parameter for another, the listing now tries
+  `trendingScore`, then `likes`, then `downloads`, falling through only on a
+  400/422 - a rejected query is the one case where a different query might
+  work. A rate limit or an outage is rethrown immediately instead of burning the
+  remaining quota on requests that were never going to succeed. If every
+  candidate is rejected the tab says the API has changed rather than showing an
+  empty list.
+
+- `fetchJson` now attaches the HTTP status to the errors it throws, so callers
+  can tell a bad request apart from an outage.
+
+### Tests
+
+- 8 further checks (82 total) covering the preferred sort being tried first and
+  alone, the fallback rendering after a 400, the honest failure when every
+  candidate is rejected, and a rate limit not being retried across candidates.
+
 ## [2.4.0] - 2026-08-17
 
 ### Added

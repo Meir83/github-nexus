@@ -14,7 +14,9 @@ AI Discovery Hub V2 expands beyond GitHub to become a comprehensive discovery pl
 
 ### 🌐 Multi-Platform Support (V2)
 - **GitHub** - Trending repositories with full statistics
-- **HuggingFace** - Trending AI models and datasets with download counts
+- **HuggingFace** - Trending AI models and datasets with download counts.
+  Sorted by `trendingScore`, falling back to `likes` then `downloads` if the API
+  rejects a sort order, so a parameter change cannot blank the tab.
 - **LLM Arena** - not connected yet; the tab links to the live leaderboard
   rather than showing placeholder numbers
 - Easy platform switching with dedicated tabs

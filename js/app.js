@@ -230,7 +230,12 @@ async function fetchJson(url, source) {
     }
 
     if (!response.ok) {
-        throw new Error(`${source} error: HTTP ${response.status}`);
+        // Callers need the status to tell a bad request apart from an outage:
+        // a 400 means our query was wrong and a different one may work, while
+        // a 5xx means retrying the same thing is pointless.
+        const error = new Error(`${source} error: HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
     }
 
     return response.json();
@@ -908,6 +913,43 @@ async function fetchGitHubRepos() {
     }
 }
 
+// The HuggingFace models endpoint sorts by properties of ModelInfo -
+// downloads, likes, lastModified, createdAt, trendingScore. There is no
+// "trending" field, and asking for one returns HTTP 400, which is what used to
+// blank this tab entirely.
+//
+// Rather than pin a single parameter and hope it stays valid, try the sorts we
+// want in order of preference and fall through on a rejected request. Only a
+// 400/422 means "this query is wrong, a different one might work" - a rate
+// limit or an outage is rethrown immediately, because retrying variations of a
+// request that was never going to work just burns the quota faster.
+const HUGGINGFACE_SORT_CANDIDATES = ['trendingScore', 'likes', 'downloads'];
+
+async function fetchHuggingFaceListing() {
+    let lastError = null;
+
+    for (const sort of HUGGINGFACE_SORT_CANDIDATES) {
+        const url = `${HUGGINGFACE_API}/models?sort=${encodeURIComponent(sort)}&direction=-1&limit=30`;
+        try {
+            const data = await fetchJson(url, 'HuggingFace');
+            if (Array.isArray(data)) return data;
+            // A 200 that is not a list means the shape changed under us; treat
+            // it like a rejected query and try the next candidate.
+            lastError = new Error('HuggingFace returned an unexpected response shape.');
+        } catch (error) {
+            const rejected = error.status === 400 || error.status === 422;
+            if (!rejected) throw error;
+            console.warn(`HuggingFace rejected sort=${sort}, trying the next one.`);
+            lastError = error;
+        }
+    }
+
+    throw new Error(
+        'HuggingFace rejected every sort order this app knows about ' +
+        `(${HUGGINGFACE_SORT_CANDIDATES.join(', ')}). Their API has probably changed.`
+    );
+}
+
 // API Functions - HuggingFace
 async function fetchHuggingFaceModels() {
     try {
@@ -922,9 +964,7 @@ async function fetchHuggingFaceModels() {
             }
         }
 
-        // HuggingFace trending models endpoint
-        const url = `${HUGGINGFACE_API}/models?sort=trending&limit=30`;
-        const data = await fetchJson(url, 'HuggingFace');
+        const data = await fetchHuggingFaceListing();
         const items = data.map(model => ({
             id: model.id || model.modelId,
             name: model.modelId || model.id,
