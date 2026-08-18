@@ -104,8 +104,8 @@ const BOOKMARK_EXPORT_VERSION = 1;
 
 function exportBookmarks() {
     const count = Object.keys(bookmarks).length;
-    if (count === 0) {
-        alert('No bookmarks to export yet. Click the ☆ icon on any item first.');
+    if (count === 0 && Object.keys(aiStack).length === 0) {
+        alert('Nothing to export yet. Bookmark an item with ☆, or add one to your AI stack.');
         return;
     }
 
@@ -114,7 +114,8 @@ function exportBookmarks() {
         version: BOOKMARK_EXPORT_VERSION,
         exportedAt: new Date().toISOString(),
         count,
-        bookmarks
+        bookmarks,
+        aiStack
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -132,26 +133,38 @@ function exportBookmarks() {
 // hand-edited or older file still restores.
 function parseBookmarkFile(text) {
     const parsed = JSON.parse(text);
-    const incoming = parsed && parsed.bookmarks ? parsed.bookmarks : parsed;
 
-    if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
-        throw new Error('This file does not look like a bookmarks export.');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('This file does not look like an export from this app.');
     }
 
     // Keep only entries that actually describe an item, so a malformed file
-    // cannot poison the bookmark store with junk that breaks rendering.
-    const valid = {};
-    Object.entries(incoming).forEach(([key, item]) => {
-        if (item && typeof item === 'object' && item.id !== undefined && item.name) {
-            valid[key] = item;
+    // cannot poison the stores with junk that breaks rendering.
+    const clean = (source) => {
+        const valid = {};
+        if (source && typeof source === 'object' && !Array.isArray(source)) {
+            Object.entries(source).forEach(([key, item]) => {
+                if (item && typeof item === 'object' && item.id !== undefined && item.name) {
+                    valid[key] = item;
+                }
+            });
         }
-    });
+        return valid;
+    };
 
-    if (Object.keys(valid).length === 0) {
-        throw new Error('No valid bookmarks found in that file.');
+    // A v1 file is a bare bookmarks object with no wrapper; a v2 file wraps
+    // bookmarks and the AI stack together. Both must still restore.
+    const wrapped = parsed.bookmarks !== undefined || parsed.aiStack !== undefined;
+    const result = {
+        bookmarks: clean(wrapped ? parsed.bookmarks : parsed),
+        aiStack: clean(parsed.aiStack)
+    };
+
+    if (Object.keys(result.bookmarks).length === 0 && Object.keys(result.aiStack).length === 0) {
+        throw new Error('No valid bookmarks or AI stack entries found in that file.');
     }
 
-    return valid;
+    return result;
 }
 
 async function importBookmarks(file) {
@@ -161,15 +174,24 @@ async function importBookmarks(file) {
         const before = Object.keys(bookmarks).length;
         // Merge rather than replace - importing on a device that already has
         // bookmarks should never silently delete them.
-        bookmarks = { ...bookmarks, ...incoming };
+        bookmarks = { ...bookmarks, ...incoming.bookmarks };
         localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+
+        let stackAdded = 0;
+        if (incoming.aiStack) {
+            const stackBefore = Object.keys(aiStack).length;
+            aiStack = { ...aiStack, ...incoming.aiStack };
+            saveAiStack();
+            stackAdded = Object.keys(aiStack).length - stackBefore;
+        }
 
         const added = Object.keys(bookmarks).length - before;
         updateBookmarkCount();
         renderItems(filteredItems);
 
-        alert(`Imported ${Object.keys(incoming).length} bookmark(s): ${added} new, ` +
-              `${Object.keys(incoming).length - added} already saved.`);
+        const parts = [`${added} new bookmark(s)`];
+        if (stackAdded) parts.push(`${stackAdded} new AI stack entr(ies)`);
+        alert(`Import complete: ${parts.join(', ')}.`);
     } catch (error) {
         alert(`Import failed: ${error.message}`);
     }
@@ -208,10 +230,641 @@ async function fetchJson(url, source) {
     }
 
     if (!response.ok) {
-        throw new Error(`${source} error: HTTP ${response.status}`);
+        // Callers need the status to tell a bad request apart from an outage:
+        // a 400 means our query was wrong and a different one may work, while
+        // a 5xx means retrying the same thing is pointless.
+        const error = new Error(`${source} error: HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
     }
 
     return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - detection
+//
+// Decides whether a repository is something you would plug into an AI setup,
+// and if so which kind. Scoring rather than a flat keyword match, because a
+// repo merely *mentioning* an LLM is not an agent framework: topics are
+// curated by the repo owner and are the strongest signal, the name is next,
+// and a description mention alone is weak unless the phrase is unambiguous
+// (nobody writes "Model Context Protocol" by accident).
+//
+// Anything scoring below AI_MATCH_THRESHOLD gets no badge and no button - a
+// false positive here is worse than a miss, because it puts an install prompt
+// on a repo that cannot be installed.
+
+const AI_MATCH_THRESHOLD = 3;
+
+const AI_TYPES = {
+    mcp: {
+        label: 'MCP Server',
+        icon: '🔌',
+        topics: ['mcp', 'mcp-server', 'mcp-servers', 'model-context-protocol', 'modelcontextprotocol'],
+        namePatterns: [/(^|[-_])mcp([-_]|$)/i],
+        strongPhrases: [/model context protocol/i, /\bmcp server\b/i]
+    },
+    skill: {
+        label: 'Agent Skill',
+        icon: '🧩',
+        topics: ['claude-skill', 'claude-skills', 'agent-skill', 'agent-skills', 'ai-skill', 'ai-skills'],
+        namePatterns: [/(^|[-_])skills?([-_]|$)/i],
+        strongPhrases: [/\bclaude skill/i, /\bagent skill/i]
+    },
+    agent: {
+        label: 'AI Agent',
+        icon: '🤖',
+        topics: ['ai-agent', 'ai-agents', 'llm-agent', 'llm-agents', 'autonomous-agents',
+                 'agentic', 'agentic-ai', 'agent-framework', 'multi-agent'],
+        namePatterns: [/(^|[-_])agents?([-_]|$)/i],
+        strongPhrases: [/\bai agents?\b/i, /\bautonomous agents?\b/i, /\bagentic\b/i]
+    },
+    llmtool: {
+        label: 'LLM Tooling',
+        icon: '🧠',
+        topics: ['llm', 'llms', 'llmops', 'genai', 'generative-ai', 'rag', 'retrieval-augmented-generation',
+                 'prompt-engineering', 'embeddings', 'vector-database', 'vector-search',
+                 'openai', 'anthropic', 'claude', 'langchain', 'llama', 'transformers'],
+        namePatterns: [/(^|[-_])(llm|gpt|rag|prompt)([-_]|$)/i],
+        strongPhrases: [/\blarge language models?\b/i, /\bretrieval[- ]augmented\b/i]
+    }
+};
+
+// Weights: a curated topic outranks a name hit, which outranks prose.
+const AI_SCORE_TOPIC = 3;
+const AI_SCORE_NAME = 2;
+const AI_SCORE_PHRASE = 3;
+
+function scoreAiType(item, config) {
+    let score = 0;
+
+    const topics = (item.topics || []).map(t => String(t).toLowerCase());
+    if (config.topics.some(t => topics.includes(t))) score += AI_SCORE_TOPIC;
+
+    const name = String(item.name || '');
+    if (config.namePatterns.some(re => re.test(name))) score += AI_SCORE_NAME;
+
+    const text = `${item.description || ''} ${name}`;
+    if (config.strongPhrases.some(re => re.test(text))) score += AI_SCORE_PHRASE;
+
+    return score;
+}
+
+// Returns { type, label, icon, score } or null when the repo is not AI-related.
+function detectAiType(item) {
+    if (!item) return null;
+    // HuggingFace models are already AI by definition, but they are not
+    // something you "install into" an AI tool, so they stay out of this.
+    if (item.platform !== 'github') return null;
+
+    let best = null;
+    Object.entries(AI_TYPES).forEach(([type, config]) => {
+        const score = scoreAiType(item, config);
+        if (score >= AI_MATCH_THRESHOLD && (!best || score > best.score)) {
+            best = { type, label: config.label, icon: config.icon, score };
+        }
+    });
+
+    return best;
+}
+
+// ---------------------------------------------------------------------------
+// Repository risk signals
+//
+// Context: this app puts an install button next to arbitrary GitHub repos, and
+// a typosquatted re-upload of a popular skill nearly got installed on a real
+// machine. So the button needs to carry risk information.
+//
+// What this is NOT: a malware scanner. A static page cannot read a repo's code,
+// cannot spot obfuscation, and cannot know what an external endpoint does with
+// your data. It therefore NEVER declares a repo safe - the absence of signals
+// is reported as "nothing automated found", not as a clean bill of health.
+// A false reassurance here is worse than no check at all, because it would
+// launder exactly the repo that is trying to hurt you.
+//
+// What it IS: detection of the structural fingerprints of the supply-chain
+// re-upload pattern, all of which the malicious repo had - days old, almost no
+// stars, sharing a name with a far older and more popular project, and carrying
+// committed binaries and archives that source repos have no reason to ship.
+
+const RISK_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+const RISK_NEW_REPO_DAYS = 30;
+const RISK_LOW_STARS = 50;
+
+// Extensions that a source repository rarely has a legitimate reason to commit,
+// and which are the usual delivery vehicle for a dropper.
+const RISK_FILE_PATTERNS = [
+    { re: /\.(exe|msi|scr|bat|cmd|com)$/i, label: 'Windows executable' },
+    { re: /\.(dmg|pkg|app)$/i, label: 'macOS installer' },
+    { re: /\.(zip|7z|rar|tar\.gz|tgz)$/i, label: 'archive' },
+    { re: /\.(pyc|pyd)$/i, label: 'compiled Python bytecode' },
+    { re: /\.(dll|so|dylib)$/i, label: 'binary library' },
+    { re: /\.(jar|bin)$/i, label: 'binary' }
+];
+
+function daysSince(dateString) {
+    const then = new Date(dateString).getTime();
+    if (!Number.isFinite(then)) return null;
+    return Math.floor((Date.now() - then) / 86400000);
+}
+
+// Tier 1: costs nothing. Runs on every card from data the listing already has.
+function assessBasicRisk(item) {
+    const signals = [];
+    if (item.platform !== 'github') return signals;
+
+    const age = daysSince(item.created_at);
+    const stars = Number(item.stars) || 0;
+    const isNew = age !== null && age <= RISK_NEW_REPO_DAYS;
+    const isUnproven = stars < RISK_LOW_STARS;
+
+    if (isNew && isUnproven) {
+        signals.push({
+            severity: 'high',
+            title: `Created ${age} day(s) ago with ${stars} star(s)`,
+            detail: 'New and unproven is the normal shape of a malicious re-upload. It is also the normal shape of a genuine new project - so this is a reason to read the code, not a verdict.'
+        });
+    } else if (isNew) {
+        signals.push({
+            severity: 'medium',
+            title: `Created ${age} day(s) ago`,
+            detail: 'Recently created repositories have had little time to be reviewed by anyone.'
+        });
+    } else if (isUnproven) {
+        signals.push({
+            severity: 'medium',
+            title: `Only ${stars} star(s)`,
+            detail: 'Few people have publicly vouched for this repository.'
+        });
+    }
+
+    return signals;
+}
+
+function highestSeverity(signals) {
+    if (signals.some(s => s.severity === 'high')) return 'high';
+    if (signals.some(s => s.severity === 'medium')) return 'medium';
+    return signals.length ? 'info' : null;
+}
+
+// Tier 2: costs API calls, so it runs only when the user opens the install
+// panel - the moment the answer actually matters.
+async function runDeepRiskCheck(item) {
+    const cacheKey = `risk_${item.platform}_${item.id}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        const parsed = JSON.parse(cached);
+        if (isCacheValid(parsed, RISK_CACHE_DURATION)) return parsed.result;
+    }
+
+    const owner = item.author;
+    const name = item.name;
+    const signals = [];
+    let degraded = null;
+
+    try {
+        // 1. Name collision. This is the signal that catches a typosquat: an
+        //    older, far more popular repository with the very same name.
+        const dupUrl = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(`${name} in:name`)}&sort=stars&order=desc&per_page=5`;
+        const dupes = await fetchJson(dupUrl, 'GitHub');
+        const rival = (dupes.items || []).find(r =>
+            r.name.toLowerCase() === String(name).toLowerCase() &&
+            r.owner.login.toLowerCase() !== String(owner).toLowerCase() &&
+            r.stargazers_count > Math.max(20, (Number(item.stars) || 0) * 10) &&
+            new Date(r.created_at) < new Date(item.created_at)
+        );
+
+        if (rival) {
+            signals.push({
+                severity: 'high',
+                title: `Another repo shares this name and is far more established`,
+                detail: `${rival.owner.login}/${rival.name} has ${formatNumber(rival.stargazers_count)} stars and is older. Re-uploading a popular project under a new owner is the core of a typosquat attack. Check which one you actually meant.`,
+                link: rival.html_url,
+                linkLabel: `Open ${rival.owner.login}/${rival.name}`
+            });
+        }
+
+        // 2. Root file listing. Committed binaries and archives in a source
+        //    repository are the usual way a payload gets delivered.
+        const contents = await fetchJson(`${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/contents/`, 'GitHub');
+        const flagged = [];
+        (Array.isArray(contents) ? contents : []).forEach(entry => {
+            const match = RISK_FILE_PATTERNS.find(p => p.re.test(entry.name));
+            if (match) flagged.push(`${entry.name} (${match.label})`);
+            if (entry.name === '__pycache__') flagged.push('__pycache__ (committed bytecode)');
+        });
+
+        if (flagged.length) {
+            signals.push({
+                severity: 'high',
+                title: 'Executables or archives committed to the repository',
+                detail: `Found: ${flagged.slice(0, 6).join(', ')}. Source projects rarely commit binaries; droppers usually do. Inspect these before running anything.`
+            });
+        }
+
+        // 3. A security notice in the repo is worth surfacing loudly, whichever
+        //    side of the incident this repo is on.
+        const notice = (Array.isArray(contents) ? contents : []).find(e => /^security[-_ ]?notice/i.test(e.name));
+        if (notice) {
+            signals.push({
+                severity: 'high',
+                title: `This repository contains ${notice.name}`,
+                detail: 'Read it before doing anything else - a maintainer published it for a reason.',
+                link: notice.html_url,
+                linkLabel: 'Read the notice'
+            });
+        }
+    } catch (error) {
+        // Rate limited or offline. Say so rather than implying all-clear.
+        degraded = error.message || 'The checks could not be completed.';
+    }
+
+    const result = { signals, degraded, checkedAt: Date.now() };
+    localStorage.setItem(cacheKey, JSON.stringify({ result, timestamp: Date.now() }));
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - install recipes
+//
+// Ground rule, and the reason this file has an `exact` flag: a command that is
+// derived purely from the repo URL (a clone, a skill drop into ~/.claude/skills)
+// is always correct and is shown plainly. A command that has to guess something
+// the repo alone does not tell us - the published package name, the server's
+// start command - is marked and paired with a link to the README. Printing a
+// confident install line that silently does not work would be the same mistake
+// as the fabricated leaderboard this app used to ship.
+
+function repoSlug(item) {
+    return String(item.name || 'tool').toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+}
+
+function repoCloneUrl(item) {
+    const url = safeUrl(item.url);
+    return url ? `${url}.git` : '';
+}
+
+function packageManagerStep(item) {
+    const lang = String(item.language || '').toLowerCase();
+    const slug = repoSlug(item);
+
+    if (lang === 'python') {
+        return { label: 'Install the package', code: `pip install ${slug}`, exact: false,
+                 note: 'Assumes the PyPI name matches the repo name - check the README.' };
+    }
+    if (['javascript', 'typescript'].includes(lang)) {
+        return { label: 'Install the package', code: `npm install ${slug}`, exact: false,
+                 note: 'Assumes the npm name matches the repo name - check the README.' };
+    }
+    return null;
+}
+
+function cloneStep(item) {
+    return { label: 'Clone it', code: `git clone ${repoCloneUrl(item)}`, exact: true };
+}
+
+// Returns { tabs: [{ id, label, steps: [...] }] }
+function buildInstallRecipe(item, ai) {
+    const slug = repoSlug(item);
+    const clone = cloneStep(item);
+    const pkg = packageManagerStep(item);
+
+    if (ai.type === 'mcp') {
+        return { tabs: [
+            { id: 'claude', label: 'Claude Code', steps: [
+                clone,
+                { label: 'Register the server', code: `claude mcp add ${slug} -- <start command from the README>`,
+                  exact: false,
+                  note: 'Every MCP server starts differently (npx, uvx, node, python). Copy the exact run command out of the README and drop it in place of the placeholder.' }
+            ]},
+            { id: 'cursor', label: 'Cursor / VS Code', steps: [
+                clone,
+                { label: 'Add to your MCP config', exact: false,
+                  code: `{\n  "mcpServers": {\n    "${slug}": {\n      "command": "<command from the README>",\n      "args": []\n    }\n  }\n}`,
+                  note: 'Goes in .cursor/mcp.json (Cursor) or your editor\'s MCP settings. Fill in the command from the README.' }
+            ]},
+            { id: 'generic', label: 'Anything else', steps: [
+                clone,
+                { label: 'Follow the setup docs', code: `open ${safeUrl(item.url)}#readme`, exact: true,
+                  note: 'MCP works the same everywhere: run the server, point your client at it.' }
+            ]}
+        ]};
+    }
+
+    if (ai.type === 'skill') {
+        return { tabs: [
+            { id: 'claude', label: 'Claude Code', steps: [
+                { label: 'Drop it into your skills folder',
+                  code: `git clone ${repoCloneUrl(item)} ~/.claude/skills/${slug}`, exact: true,
+                  note: 'Skills are just folders. Restart Claude Code and it will be picked up.' }
+            ]},
+            { id: 'cursor', label: 'Cursor / VS Code', steps: [
+                clone,
+                { label: 'Adapt the instructions', code: `open ${safeUrl(item.url)}#readme`, exact: true,
+                  note: 'Skills are a Claude convention. In other tools, paste the skill\'s instructions into your rules or system prompt.' }
+            ]},
+            { id: 'generic', label: 'Anything else', steps: [clone] }
+        ]};
+    }
+
+    // Agent frameworks and general LLM tooling install like normal libraries.
+    const libSteps = pkg ? [pkg, clone] : [clone];
+    return { tabs: [
+        { id: 'claude', label: 'Claude Code', steps: libSteps.concat([
+            { label: 'Point Claude at it', code: `claude "read the README in ./${slug} and set it up for me"`,
+              exact: false, note: 'Once it is on disk, let the agent do the wiring.' }
+        ])},
+        { id: 'cursor', label: 'Cursor / VS Code', steps: libSteps },
+        { id: 'generic', label: 'Anything else', steps: [clone,
+            { label: 'Read the setup docs', code: `open ${safeUrl(item.url)}#readme`, exact: true }]}
+    ]};
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - the stack
+
+let aiStack = JSON.parse(localStorage.getItem('aiStack') || '{}');
+
+function aiStackKey(item) {
+    return `${item.platform}_${item.id}`;
+}
+
+function inAiStack(item) {
+    return aiStack[aiStackKey(item)] !== undefined;
+}
+
+function saveAiStack() {
+    localStorage.setItem('aiStack', JSON.stringify(aiStack));
+    updateAiStackCount();
+}
+
+function addToAiStack(item, ai) {
+    const key = aiStackKey(item);
+    if (aiStack[key]) return false;
+    aiStack[key] = { ...item, aiType: ai.type, aiLabel: ai.label, status: 'want-to-try', addedAt: Date.now() };
+    saveAiStack();
+    return true;
+}
+
+function removeFromAiStack(item) {
+    delete aiStack[aiStackKey(item)];
+    saveAiStack();
+}
+
+function setAiStackStatus(item, status) {
+    const entry = aiStack[aiStackKey(item)];
+    if (entry) {
+        entry.status = status;
+        saveAiStack();
+    }
+}
+
+function updateAiStackCount() {
+    const el = document.getElementById('aiStackCount');
+    if (el) el.textContent = Object.keys(aiStack).length;
+}
+
+// ---------------------------------------------------------------------------
+// "Add to my AI" - modal
+
+let modalItem = null;
+let modalAi = null;
+let modalTab = 'claude';
+let modalRisk = null;        // { signals, degraded } once the deep check returns
+let modalRiskLoading = false;
+let modalStepsRevealed = false;
+
+function renderInstallSteps(steps) {
+    return steps.map((step, i) => `
+        <div class="install-step">
+            <div class="install-step-head">
+                <span class="install-step-num">${i + 1}</span>
+                <span class="install-step-label">${escapeHtml(step.label)}</span>
+                ${step.exact ? '' : '<span class="install-flag" title="This line contains a guess - confirm it against the repo README">needs a look</span>'}
+            </div>
+            <pre class="install-code"><code>${escapeHtml(step.code)}</code></pre>
+            <button class="copy-btn" data-copy="${escapeHtml(step.code)}">Copy</button>
+            ${step.note ? `<p class="install-note">${escapeHtml(step.note)}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+function renderRiskSignal(sig) {
+    return `
+        <li class="risk-signal ${escapeHtml(sig.severity)}">
+            <div class="risk-signal-title">${escapeHtml(sig.title)}</div>
+            <div class="risk-signal-detail">${escapeHtml(sig.detail)}</div>
+            ${sig.link ? `<a class="risk-signal-link" href="${escapeHtml(safeUrl(sig.link))}" target="_blank" rel="noopener noreferrer">${escapeHtml(sig.linkLabel || 'Open')} →</a>` : ''}
+        </li>
+    `;
+}
+
+function renderRiskPanel(basicSignals) {
+    const deep = modalRisk ? modalRisk.signals : [];
+    const all = basicSignals.concat(deep);
+    const level = highestSeverity(all);
+
+    const body = modalRiskLoading
+        ? '<div class="risk-loading">Running checks…</div>'
+        : `
+            ${all.length ? `<ul class="risk-list">${all.map(renderRiskSignal).join('')}</ul>` : ''}
+            ${!all.length ? `
+                <p class="risk-none">
+                    No automated signals found. <strong>That is not a safety verdict.</strong>
+                    These checks look at repository age, popularity, name collisions and
+                    committed binaries — they cannot read the code or tell you what it does
+                    once it runs.
+                </p>
+            ` : ''}
+            ${modalRisk && modalRisk.degraded ? `
+                <p class="risk-degraded">⚠ The deeper checks did not complete: ${escapeHtml(modalRisk.degraded)}
+                Treat this panel as incomplete.</p>
+            ` : ''}
+        `;
+
+    return `
+        <div class="risk-panel ${level ? escapeHtml(level) : 'clear'}">
+            <div class="risk-panel-head">
+                <span class="risk-panel-icon">${level === 'high' ? '⛔' : level === 'medium' ? '⚠' : '🔍'}</span>
+                <h3>${level === 'high' ? 'Serious risk signals' : level === 'medium' ? 'Worth a look first' : 'Safety checks'}</h3>
+            </div>
+            ${body}
+            <p class="risk-always">
+                Whatever this panel says, installing a skill, MCP server or agent means
+                running someone else's code with your permissions. Read the source, and
+                prefer the original project over a re-upload.
+            </p>
+        </div>
+    `;
+}
+
+function renderAiModal() {
+    const overlay = document.getElementById('aiModal');
+    if (!modalItem || !modalAi) {
+        overlay.classList.remove('open');
+        overlay.innerHTML = '';
+        return;
+    }
+
+    const recipe = buildInstallRecipe(modalItem, modalAi);
+    const tab = recipe.tabs.find(t => t.id === modalTab) || recipe.tabs[0];
+    const inStack = inAiStack(modalItem);
+    const entry = aiStack[aiStackKey(modalItem)];
+
+    const basicSignals = assessBasicRisk(modalItem);
+    const allSignals = basicSignals.concat(modalRisk ? modalRisk.signals : []);
+    const riskLevel = highestSeverity(allSignals);
+    // Serious signals put the commands behind one deliberate click. Not a
+    // block - you own the machine - but the copy button should not be the
+    // first thing your hand reaches for.
+    const gateSteps = riskLevel === 'high' && !modalStepsRevealed;
+
+    overlay.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add to my AI">
+            <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+
+            <div class="modal-head">
+                <span class="ai-badge ${escapeHtml(modalAi.type)}">${modalAi.icon} ${escapeHtml(modalAi.label)}</span>
+                <h2>${escapeHtml(modalItem.name)}</h2>
+                <div class="modal-author">by ${escapeHtml(modalItem.author)}</div>
+                <p class="modal-desc">${escapeHtml(modalItem.description) || 'No description available'}</p>
+            </div>
+
+            <div class="modal-stack-row">
+                ${inStack
+                    ? `<span class="stack-state">In your AI stack — ${escapeHtml(entry.status === 'installed' ? 'installed' : 'want to try')}</span>
+                       <button class="toolbar-button" id="modalToggleStatus">${entry.status === 'installed' ? '↩ Mark as want to try' : '✓ Mark as installed'}</button>
+                       <button class="toolbar-button" id="modalRemove">Remove</button>`
+                    : `<button class="toolbar-button primary" id="modalAdd">+ Add to my AI</button>`}
+            </div>
+
+            ${renderRiskPanel(basicSignals)}
+
+            ${gateSteps ? `
+                <div class="steps-gate">
+                    <p>Install steps are hidden because of the signals above.</p>
+                    <button class="toolbar-button" id="revealSteps">Show install steps anyway</button>
+                </div>
+            ` : `
+                <div class="modal-tabs">
+                    ${recipe.tabs.map(t => `
+                        <button class="modal-tab ${t.id === tab.id ? 'active' : ''}" data-tab="${escapeHtml(t.id)}">
+                            ${escapeHtml(t.label)}
+                        </button>
+                    `).join('')}
+                </div>
+
+                <div class="modal-body">
+                    ${renderInstallSteps(tab.steps)}
+                </div>
+            `}
+
+            <p class="modal-footnote">
+                Commands marked <em>needs a look</em> contain something this app had to guess —
+                a package name or a start command. Confirm them against the
+                <a href="${escapeHtml(safeUrl(modalItem.url))}#readme" target="_blank" rel="noopener noreferrer">repo README</a>.
+            </p>
+        </div>
+    `;
+    overlay.classList.add('open');
+    wireAiModal();
+}
+
+async function openAiModal(item, ai) {
+    modalItem = item;
+    modalAi = ai;
+    modalTab = 'claude';
+    modalRisk = null;
+    modalStepsRevealed = false;
+    modalRiskLoading = true;
+    renderAiModal();
+
+    const result = await runDeepRiskCheck(item);
+
+    // The user may have closed the panel or opened another repo while the
+    // checks were in flight - never paint stale results over a new repo.
+    if (modalItem !== item) return;
+
+    modalRisk = result;
+    modalRiskLoading = false;
+    renderAiModal();
+}
+
+function closeAiModal() {
+    modalItem = null;
+    modalAi = null;
+    renderAiModal();
+}
+
+function wireAiModal() {
+    const overlay = document.getElementById('aiModal');
+
+    document.getElementById('modalClose').addEventListener('click', closeAiModal);
+
+    overlay.querySelectorAll('.modal-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            modalTab = btn.dataset.tab;
+            renderAiModal();
+        });
+    });
+
+    overlay.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const text = btn.dataset.copy;
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.textContent = 'Copied';
+            } catch (error) {
+                // Clipboard access can be denied (insecure context, permissions).
+                // Select the text instead so the user can copy it by hand.
+                const code = btn.previousElementSibling;
+                const range = document.createRange();
+                range.selectNodeContents(code);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                btn.textContent = 'Select + copy';
+            }
+            setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+        });
+    });
+
+    const revealBtn = document.getElementById('revealSteps');
+    if (revealBtn) {
+        revealBtn.addEventListener('click', () => {
+            modalStepsRevealed = true;
+            renderAiModal();
+        });
+    }
+
+    const addBtn = document.getElementById('modalAdd');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            addToAiStack(modalItem, modalAi);
+            renderAiModal();
+            renderItems(filteredItems);
+        });
+    }
+
+    const toggleBtn = document.getElementById('modalToggleStatus');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const entry = aiStack[aiStackKey(modalItem)];
+            setAiStackStatus(modalItem, entry.status === 'installed' ? 'want-to-try' : 'installed');
+            renderAiModal();
+        });
+    }
+
+    const removeBtn = document.getElementById('modalRemove');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            removeFromAiStack(modalItem);
+            renderAiModal();
+            renderItems(filteredItems);
+        });
+    }
 }
 
 // API Functions - GitHub
@@ -260,6 +913,43 @@ async function fetchGitHubRepos() {
     }
 }
 
+// The HuggingFace models endpoint sorts by properties of ModelInfo -
+// downloads, likes, lastModified, createdAt, trendingScore. There is no
+// "trending" field, and asking for one returns HTTP 400, which is what used to
+// blank this tab entirely.
+//
+// Rather than pin a single parameter and hope it stays valid, try the sorts we
+// want in order of preference and fall through on a rejected request. Only a
+// 400/422 means "this query is wrong, a different one might work" - a rate
+// limit or an outage is rethrown immediately, because retrying variations of a
+// request that was never going to work just burns the quota faster.
+const HUGGINGFACE_SORT_CANDIDATES = ['trendingScore', 'likes', 'downloads'];
+
+async function fetchHuggingFaceListing() {
+    let lastError = null;
+
+    for (const sort of HUGGINGFACE_SORT_CANDIDATES) {
+        const url = `${HUGGINGFACE_API}/models?sort=${encodeURIComponent(sort)}&direction=-1&limit=30`;
+        try {
+            const data = await fetchJson(url, 'HuggingFace');
+            if (Array.isArray(data)) return data;
+            // A 200 that is not a list means the shape changed under us; treat
+            // it like a rejected query and try the next candidate.
+            lastError = new Error('HuggingFace returned an unexpected response shape.');
+        } catch (error) {
+            const rejected = error.status === 400 || error.status === 422;
+            if (!rejected) throw error;
+            console.warn(`HuggingFace rejected sort=${sort}, trying the next one.`);
+            lastError = error;
+        }
+    }
+
+    throw new Error(
+        'HuggingFace rejected every sort order this app knows about ' +
+        `(${HUGGINGFACE_SORT_CANDIDATES.join(', ')}). Their API has probably changed.`
+    );
+}
+
 // API Functions - HuggingFace
 async function fetchHuggingFaceModels() {
     try {
@@ -274,9 +964,7 @@ async function fetchHuggingFaceModels() {
             }
         }
 
-        // HuggingFace trending models endpoint
-        const url = `${HUGGINGFACE_API}/models?sort=trending&limit=30`;
-        const data = await fetchJson(url, 'HuggingFace');
+        const data = await fetchHuggingFaceListing();
         const items = data.map(model => ({
             id: model.id || model.modelId,
             name: model.modelId || model.id,
@@ -545,6 +1233,18 @@ function renderItems(items) {
         });
     });
 
+    // "Add to my AI" buttons - stopPropagation so the card does not also
+    // open the repo in a new tab underneath the modal.
+    container.querySelectorAll('.add-to-ai-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = items.find(i => String(i.id) === btn.dataset.aiId);
+            if (!item) return;
+            const ai = detectAiType(item);
+            if (ai) openAiModal(item, ai);
+        });
+    });
+
     // Add bookmark click handlers
     container.querySelectorAll('.bookmark-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -565,6 +1265,12 @@ function renderItems(items) {
 function renderCard(item, index) {
     const bookmarked = isBookmarked(item.id, item.platform);
     const url = safeUrl(item.url);
+    const ai = detectAiType(item);
+    const inStack = ai && inAiStack(item);
+    // Risk signals are shown on every GitHub card, not only AI ones - the
+    // warning is about the repo, not about what you plan to do with it.
+    const riskSignals = assessBasicRisk(item);
+    const riskLevel = highestSeverity(riskSignals);
 
     return `
         <div class="repo-card" data-url="${escapeHtml(url)}">
@@ -574,6 +1280,8 @@ function renderCard(item, index) {
             <div class="repo-rank">${index + 1}</div>
 
             <div class="platform-badge ${escapeHtml(item.platform)}">${escapeHtml(item.platform)}</div>
+            ${ai ? `<div class="ai-badge ${escapeHtml(ai.type)}">${ai.icon} ${escapeHtml(ai.label)}</div>` : ''}
+            ${riskLevel ? `<div class="risk-chip ${escapeHtml(riskLevel)}" title="${escapeHtml(riskSignals.map(sig => sig.title).join(' · '))}">⚠ ${riskLevel === 'high' ? 'Check before installing' : 'Unproven'}</div>` : ''}
 
             <h3 class="repo-name">${escapeHtml(item.name)}</h3>
             <div class="repo-author">by ${escapeHtml(item.author)}</div>
@@ -638,6 +1346,12 @@ function renderCard(item, index) {
                     </div>
                 ` : ''}
             </div>
+
+            ${ai ? `
+                <button class="add-to-ai-btn ${inStack ? 'added' : ''} ${riskLevel === 'high' ? 'risky' : ''}" data-ai-id="${escapeHtml(item.id)}">
+                    ${inStack ? '✓ In your AI stack' : (riskLevel === 'high' ? '⚠ Review, then add to my AI' : '+ Add to my AI')}
+                </button>
+            ` : ''}
         </div>
     `;
 }
@@ -847,6 +1561,36 @@ function setupEventListeners() {
         applyFiltersAndSort();
     });
 
+    // My AI Stack view
+    document.getElementById('aiStackBtn').addEventListener('click', () => {
+        const entries = Object.values(aiStack);
+        if (entries.length === 0) {
+            alert('Your AI stack is empty. Look for the "+ Add to my AI" button on agent, skill and MCP repos.');
+            return;
+        }
+
+        searchMode = null;
+        document.getElementById('searchInput').value = '';
+        renderSearchScopeBanner();
+
+        // Newest first - the thing you just added is the thing you want to see.
+        const sorted = entries.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+        allItems = sorted;
+        filteredItems = sorted;
+        populateLanguageFilter();
+        applyFiltersAndSort({ skipTextFilter: true });
+    });
+
+    // Modal dismissal
+    document.getElementById('aiModal').addEventListener('click', (e) => {
+        // Only a click on the backdrop itself closes it, not one inside the card.
+        if (e.target.id === 'aiModal') closeAiModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAiModal();
+    });
+
     // Bookmark backup
     document.getElementById('exportBtn').addEventListener('click', exportBookmarks);
 
@@ -878,6 +1622,7 @@ async function init() {
     document.getElementById('dateTo').value = getDefaultDateTo();
 
     updateBookmarkCount();
+    updateAiStackCount();
     setupEventListeners();
 
     // Load GitHub by default

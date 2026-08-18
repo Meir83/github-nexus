@@ -5,6 +5,113 @@ All notable changes to AI Discovery Hub (formerly GitHub Nexus) will be document
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-08-18
+
+### Fixed
+
+- **The HuggingFace tab returned HTTP 400 and rendered nothing.** The listing
+  asked for `sort=trending`, which is not a valid value: the endpoint sorts by
+  properties of `ModelInfo` - `downloads`, `likes`, `lastModified`, `createdAt`,
+  `trendingScore` - and there is no `trending` field. The search path was
+  unaffected because it already used `sort=downloads`, which is why only
+  browsing broke.
+
+  Rather than swap one hardcoded parameter for another, the listing now tries
+  `trendingScore`, then `likes`, then `downloads`, falling through only on a
+  400/422 - a rejected query is the one case where a different query might
+  work. A rate limit or an outage is rethrown immediately instead of burning the
+  remaining quota on requests that were never going to succeed. If every
+  candidate is rejected the tab says the API has changed rather than showing an
+  empty list.
+
+- `fetchJson` now attaches the HTTP status to the errors it throws, so callers
+  can tell a bad request apart from an outage.
+
+### Tests
+
+- 8 further checks (82 total) covering the preferred sort being tried first and
+  alone, the fallback rendering after a 400, the honest failure when every
+  candidate is rejected, and a rate limit not being retried across candidates.
+
+## [2.4.0] - 2026-08-17
+
+### Added
+
+- **Risk signals on repositories.** Prompted by a real incident: a user browsing
+  this app found a skill, asked an agent to install it, and it turned out to be a
+  typosquatted re-upload that disabled TLS verification and exfiltrated
+  cryptocurrency wallet data. v2.3.0 put an install button next to arbitrary
+  GitHub repos with no risk information at all; this closes that gap.
+  - **On every GitHub card**, from data the listing already returns: repository
+    age and star count, shown as a warning chip. No extra API calls.
+  - **In the install panel**, when it actually matters: a name-collision check
+    that finds an older, far more popular repository with the same name (the
+    defining fingerprint of a typosquat) and links to it, plus a root file
+    listing that flags committed executables, installers, archives and Python
+    bytecode, plus any `SECURITY-NOTICE.md` in the repo. Cached for an hour.
+  - **Serious signals hide the install commands** behind an explicit
+    "Show install steps anyway" click. Not a block - it is the user's machine -
+    but the copy button should not be the first thing within reach.
+  - A standing reminder that installing a skill, MCP server or agent means
+    running someone else's code, shown regardless of what the checks find.
+
+### Notes on what this deliberately does not do
+
+- **It never declares a repository safe.** With no signals the panel reports
+  "No automated signals found - that is not a safety verdict" and explains what
+  the checks cannot see. A static page cannot read a repo's code, spot
+  obfuscation, or know what a remote endpoint does with your data. A green
+  "safe" badge would be worse than no check at all: it would launder precisely
+  the repository trying to do harm.
+- **Degradation is explicit.** If the checks are rate-limited or fail, the panel
+  says they did not complete and marks itself incomplete, rather than showing an
+  empty list that reads as all-clear.
+
+### Tests
+
+- 18 further checks (74 total), built on a fixture modelled directly on the real
+  attack: a four-day-old, three-star re-upload sharing its name with an older
+  4.2k-star project and shipping a committed `.zip` and `__pycache__`. Assertions
+  cover every signal firing, the established repo staying unflagged, the steps
+  being gated, the wording never claiming safety, and honest degradation under
+  rate limiting.
+
+## [2.3.0] - 2026-08-17
+
+### Added
+
+- **"Add to my AI".** GitHub repositories that can actually be installed into an
+  AI setup are now detected, badged and actionable: MCP servers, agent skills,
+  agent frameworks and general LLM tooling.
+  - **Detection is scored, not keyword-matched.** Curated repo topics carry the
+    most weight, the repo name less, a description mention least, and a repo must
+    clear a threshold before it is badged. This is deliberate: a false positive
+    puts an install prompt on something uninstallable. Tests assert that `redis`
+    and a travel-booking app called `travel-agent-booking` are both left alone.
+  - **My AI Stack** - a collection separate from bookmarks, with a
+    want-to-try / installed status per entry, persisted in `localStorage` and
+    reachable from the toolbar.
+  - **Install panel** with per-tool instructions for Claude Code, Cursor / VS Code
+    and everything else, with a copy button on every step. MCP servers get a
+    `claude mcp add` scaffold and an editor config snippet; skills get the exact
+    `~/.claude/skills/` clone; frameworks get the package-manager line for their
+    language.
+  - **Guesses are labelled.** Commands derived from the repo URL alone are exact.
+    Anything inferred - a published package name, an MCP start command - is
+    tagged "needs a look" and linked to the repo README. Shipping a confident
+    install line that silently fails would repeat the fabricated-data mistake
+    this project just finished removing.
+- 20 further smoke checks covering detection, the decoys, the modal, stack status
+  transitions and the export round-trip (56 total).
+
+### Changed
+
+- The bookmark export file now carries the AI stack alongside bookmarks, and
+  import restores both. Export files written by v2.2.0, which contain only
+  bookmarks, still import correctly.
+- Card badges are offset clear of the bookmark button, which they previously
+  overlapped.
+
 ## [2.2.0] - 2026-08-17
 
 Closes the remaining items from `ADVISORY.md`.
